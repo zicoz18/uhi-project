@@ -1,0 +1,1708 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <title>MAYBE SWAP</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%230a0a0a'/><rect x='3' y='1' width='1' height='1' fill='%23e8e8e0'/><rect x='5' y='2' width='1' height='1' fill='%23e8e8e0'/><rect x='10' y='2' width='1' height='1' fill='%23e8e8e0'/><rect x='12' y='1' width='1' height='1' fill='%23e8e8e0'/><rect x='4' y='4' width='8' height='1' fill='%23e8e8e0'/><rect x='3' y='5' width='10' height='1' fill='%23e8e8e0'/><rect x='2' y='6' width='12' height='3' fill='%23e8e8e0'/><rect x='3' y='9' width='10' height='1' fill='%23e8e8e0'/><rect x='4' y='10' width='8' height='1' fill='%23e8e8e0'/><rect x='3' y='6' width='3' height='2' fill='%230a0a0a'/><rect x='10' y='6' width='3' height='2' fill='%230a0a0a'/><rect x='5' y='11' width='2' height='1' fill='%23e8e8e0'/><rect x='9' y='11' width='2' height='1' fill='%23e8e8e0'/><rect x='2' y='12' width='3' height='1' fill='%23e8e8e0'/><rect x='7' y='12' width='2' height='1' fill='%23e8e8e0'/><rect x='11' y='12' width='3' height='1' fill='%23e8e8e0'/><rect x='1' y='13' width='2' height='1' fill='%23e8e8e0'/><rect x='13' y='13' width='2' height='1' fill='%23e8e8e0'/></svg>"
+      type="image/svg+xml"
+    />
+    <script>
+      // Prevent dark-mode FOUC: apply class before first paint
+      (function () {
+        var d = localStorage.getItem("dark");
+        if (
+          d === "1" ||
+          (d === null && matchMedia("(prefers-color-scheme:dark)").matches)
+        )
+          document.documentElement.classList.add("dark");
+      })();
+    </script>
+    <style>
+      :root {
+        --bg: #fff;
+        --fg: #000;
+        --fg-muted: #666;
+        --fg-dim: #999;
+        --border: #000;
+        --border-muted: #ddd;
+        --input-ph: #aaa;
+        --surface: #f9f9f9;
+        --surface-hover: #f5f5f5;
+        --list-hover: #f0f0f0;
+        --btn-bg: #000;
+        --btn-fg: #fff;
+        --btn-hover: #333;
+        --btn-dis-bg: transparent;
+        --btn-dis-border: #ccc;
+        --btn-dis-fg: #999;
+        --sec-bg: #fff;
+        --sec-border: #000;
+        --card-border: #ccc;
+        --card-shadow: none;
+        --modal-overlay: rgba(0, 0, 0, 0.8);
+        --modal-bg: #fff;
+        --modal-border: #000;
+        --status-error: #fff0f0;
+        --status-success: #f0fff0;
+        --slip-border: rgba(0, 0, 0, 0.25);
+        --slip-hover: rgba(0, 0, 0, 0.45);
+        --slip-focus: #000;
+        --refresh-color: #bbb;
+        --refresh-hover: #888;
+        --countdown: #bbb;
+        --info-border: #999;
+        --info-hover: #000;
+        --info-tip-bg: #fff;
+        --info-tip-border: #ddd;
+        --info-tip-fg: #333;
+        --info-tip-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        --toggle-bg: #eee;
+        --toggle-fg: #000;
+        --loading-border: #666;
+        --loading-top: #fff;
+        --token-bal: #888;
+        --group-border: #eee;
+        --routes-fg: #666;
+        --routes-hover: #000;
+        --routes-list: #444;
+        --badge-bg: #000;
+        --badge-fg: #fff;
+        --link-fg: inherit;
+        --remove-fg: #999;
+      }
+      .dark {
+        --bg: #0a0a0a;
+        --fg: #e8e8e0;
+        --fg-muted: #888;
+        --fg-dim: #666;
+        --border: #333;
+        --border-muted: #333;
+        --input-ph: #555;
+        --surface: #111;
+        --surface-hover: #151515;
+        --list-hover: #1a1a1a;
+        --btn-bg: #e8e8e0;
+        --btn-fg: #0a0a0a;
+        --btn-hover: #ccc;
+        --btn-dis-bg: transparent;
+        --btn-dis-border: #444;
+        --btn-dis-fg: #666;
+        --sec-bg: #0a0a0a;
+        --sec-border: #333;
+        --card-border: #333;
+        --card-shadow: none;
+        --modal-overlay: rgba(0, 0, 0, 0.85);
+        --modal-bg: #111;
+        --modal-border: #333;
+        --status-error: #1a0000;
+        --status-success: #001a00;
+        --slip-border: rgba(255, 255, 255, 0.15);
+        --slip-hover: rgba(255, 255, 255, 0.3);
+        --slip-focus: #e8e8e0;
+        --refresh-color: #555;
+        --refresh-hover: #999;
+        --countdown: #555;
+        --info-border: #555;
+        --info-hover: #e8e8e0;
+        --info-tip-bg: #111;
+        --info-tip-border: #333;
+        --info-tip-fg: #aaa;
+        --info-tip-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        --toggle-bg: #e8e8e0;
+        --toggle-fg: #000;
+        --loading-border: #444;
+        --loading-top: #0a0a0a;
+        --token-bal: #666;
+        --group-border: #222;
+        --routes-fg: #666;
+        --routes-hover: #e8e8e0;
+        --routes-list: #999;
+        --badge-bg: #e8e8e0;
+        --badge-fg: #0a0a0a;
+        --link-fg: #e8e8e0;
+        --remove-fg: #555;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+      }
+      body {
+        font-family: Helvetica, Arial, sans-serif;
+        background: var(--bg);
+        color: var(--fg);
+        min-height: 100vh;
+        padding: 60px 20px 20px;
+        max-width: 480px;
+        margin: 0 auto;
+        overflow-x: hidden;
+      }
+      a {
+        color: var(--link-fg);
+      }
+      h1 {
+        font-size: 14px;
+        font-weight: 400;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        margin-bottom: 24px;
+      }
+      .section {
+        margin-bottom: 16px;
+      }
+      label {
+        display: block;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        margin-bottom: 8px;
+        color: var(--fg-muted);
+      }
+      input[type="number"],
+      input[type="text"],
+      .amount-input {
+        width: 100%;
+        padding: 8px 0;
+        font-size: 24px;
+        font-family: inherit;
+        border: none;
+        border-bottom: 1.5px solid var(--border);
+        outline: none;
+        background: transparent;
+        color: var(--fg);
+      }
+      input::placeholder {
+        color: var(--input-ph);
+      }
+      input:focus {
+        border-bottom-width: 2.5px;
+        margin-bottom: -1px;
+      }
+      button {
+        display: inline-block;
+        padding: 12px 24px;
+        font-size: 12px;
+        font-family: inherit;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        background: var(--btn-bg);
+        color: var(--btn-fg);
+        border: 1px solid var(--btn-bg);
+        cursor: pointer;
+        margin-right: 8px;
+        margin-top: 8px;
+        transition:
+          background 0.2s,
+          border-color 0.2s,
+          color 0.2s;
+      }
+      button:hover {
+        background: var(--btn-hover);
+      }
+      button:disabled {
+        background: var(--btn-dis-bg);
+        border-color: var(--btn-dis-border);
+        color: var(--btn-dis-fg);
+        cursor: not-allowed;
+      }
+      button.secondary {
+        background: var(--sec-bg);
+        color: var(--fg);
+        border-color: var(--sec-border);
+      }
+      button.secondary:hover {
+        background: var(--surface-hover);
+      }
+
+      .wallet {
+        position: fixed;
+        top: max(20px, env(safe-area-inset-top, 0px));
+        right: max(20px, env(safe-area-inset-right, 0px));
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        z-index: 100;
+      }
+      .wallet button {
+        margin: 0;
+        padding: 8px 16px;
+        text-transform: none;
+      }
+
+      .token-select {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: transparent;
+        border: none;
+        padding: 4px 2px;
+        cursor: pointer;
+        transition: opacity 0.15s;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .token-select:hover {
+        opacity: 0.6;
+      }
+      .token-icon {
+        width: 24px;
+        height: 24px;
+        display: inline-flex;
+        align-items: center;
+      }
+      .token-symbol {
+        font-weight: 600;
+        color: var(--fg);
+      }
+      .token-chevron {
+        font-size: 10px;
+        color: var(--fg-dim);
+        margin-left: -2px;
+      }
+
+      /* Quick-pick token row */
+      .quick-tokens {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .quick-token {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        border: 1.5px solid transparent;
+        background: transparent;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        transition:
+          transform 0.15s ease,
+          border-color 0.15s ease,
+          filter 0.15s ease,
+          opacity 0.15s ease;
+        position: relative;
+        filter: grayscale(0.6);
+        opacity: 0.55;
+      }
+      .quick-token:hover {
+        transform: scale(1.15);
+        filter: grayscale(0);
+        opacity: 1;
+      }
+      .quick-token .qi {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        pointer-events: none;
+      }
+      .quick-token[aria-label]::after {
+        content: attr(aria-label);
+        position: absolute;
+        bottom: calc(100% + 4px);
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 10px;
+        letter-spacing: 0.03em;
+        padding: 2px 5px;
+        border-radius: 3px;
+        background: var(--info-tip-bg);
+        border: 1px solid var(--info-tip-border);
+        color: var(--info-tip-fg);
+        box-shadow: var(--info-tip-shadow);
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.12s ease;
+      }
+      .quick-token:hover::after {
+        opacity: 1;
+      }
+
+      /* Token input sections */
+      .token-section {
+        margin-bottom: 12px;
+      }
+      .token-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+        gap: 8px;
+        min-width: 0;
+      }
+      .amount-input {
+        font-weight: 400;
+      }
+      .balance {
+        font-size: 12px;
+        color: var(--fg-muted);
+        margin-top: 6px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .max-btn {
+        padding: 2px 4px;
+        border: none;
+        background: none;
+        color: var(--fg-dim);
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition:
+          color 0.15s,
+          background 0.15s;
+        margin: 0;
+        border-radius: 3px;
+      }
+      .max-btn:hover {
+        color: var(--fg);
+        background: var(--surface-hover);
+      }
+      .max-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        background: none;
+      }
+
+      /* Swap arrow */
+      .swap-arrow {
+        display: flex;
+        justify-content: center;
+        margin: 2px 0 8px;
+      }
+      .arrow-btn {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 0;
+        width: 32px;
+        height: 32px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        cursor: pointer;
+        transition:
+          transform 0.3s ease,
+          background 0.2s,
+          border-color 0.2s;
+        margin: 0;
+      }
+      .arrow-btn:hover {
+        transform: rotate(180deg);
+        background: var(--btn-bg);
+        border-color: var(--btn-bg);
+      }
+      .arrow-btn:hover svg {
+        stroke: var(--btn-fg);
+      }
+      .arrow-btn svg {
+        stroke: var(--fg);
+        transition: stroke 0.2s;
+      }
+
+      /* Swap button */
+      .swap-btn {
+        background: var(--btn-bg);
+        color: var(--btn-fg);
+        border: 1px solid var(--btn-bg);
+        padding: 14px 24px;
+        font-size: 13px;
+        font-weight: 600;
+        text-transform: none;
+        letter-spacing: 0.02em;
+        cursor: pointer;
+        width: 100%;
+        margin-top: 12px;
+        transition: all 0.2s;
+      }
+      .swap-btn:hover:not(:disabled) {
+        background: var(--btn-hover);
+      }
+      .swap-btn:disabled {
+        background: var(--btn-dis-bg);
+        border-color: var(--btn-dis-border);
+        color: var(--btn-dis-fg);
+        cursor: not-allowed;
+      }
+
+      /* Quote info */
+      .quote-info {
+        padding: 12px;
+        background: var(--surface);
+        margin-top: 16px;
+        font-size: 13px;
+        color: var(--fg);
+        overflow: hidden;
+      }
+      .quote-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 3px 0;
+      }
+      .quote-rate {
+        font-size: 12px;
+        color: var(--fg-muted);
+        padding: 6px 0 2px;
+        border-top: 1px solid var(--card-border);
+        margin-top: 4px;
+      }
+      .quote-row > :nth-child(2) {
+        margin-left: auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        text-align: right;
+      }
+      #routeInfo {
+        max-width: 65%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      #routeInfo[data-size="sm"] {
+        font-size: 12px;
+      }
+      #routeInfo[data-size="xs"] {
+        font-size: 11px;
+      }
+
+      /* Slippage inline */
+      .slip-inline {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        cursor: text;
+      }
+      .slip-unit {
+        color: var(--fg-muted);
+        font-weight: 600;
+        pointer-events: none;
+      }
+      .slip-num {
+        -webkit-appearance: none;
+        appearance: textfield;
+        background: transparent;
+        border: 0;
+        border-bottom: 1px solid var(--slip-border);
+        border-radius: 0;
+        padding: 2px 0;
+        width: 4.5ch;
+        min-width: 3.5ch;
+        text-align: right;
+        font-size: 13px;
+        color: var(--fg);
+        outline: none;
+        transition: border-color 0.15s ease;
+      }
+      .slip-num:hover {
+        border-bottom-color: var(--slip-hover);
+      }
+      .slip-num:focus {
+        border-bottom-color: var(--slip-focus);
+      }
+      .slip-num::-webkit-outer-spin-button,
+      .slip-num::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+      .slip-num[type="number"] {
+        -moz-appearance: textfield;
+      }
+
+      /* Refresh button & countdown */
+      .refresh-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 2px;
+        margin: 0;
+        color: var(--refresh-color);
+        transition: color 0.15s;
+        opacity: 0.7;
+      }
+      .refresh-btn:hover {
+        color: var(--refresh-hover);
+        opacity: 1;
+      }
+      .refresh-btn svg {
+        display: block;
+      }
+      .quote-countdown {
+        color: var(--countdown);
+        font-size: 11px;
+        opacity: 0.7;
+      }
+
+      /* Price impact */
+      .impact-warn {
+        color: #e67e22;
+      }
+      .impact-danger {
+        color: #e74c3c;
+        font-weight: 600;
+      }
+      .quote-info.impact-high {
+        background: rgba(231, 76, 60, 0.06);
+      }
+      .dark .quote-info.impact-high {
+        background: rgba(231, 76, 60, 0.1);
+      }
+
+      /* All routes collapsible */
+      .routes-toggle {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        cursor: pointer;
+        user-select: none;
+        color: var(--routes-fg);
+        font-size: 12px;
+        margin-top: 6px;
+      }
+      .routes-toggle:hover {
+        color: var(--routes-hover);
+      }
+      .routes-list {
+        margin-top: 4px;
+        font-size: 12px;
+        color: var(--routes-list);
+      }
+      .routes-list-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 3px 0;
+      }
+      .routes-list-item .best-badge {
+        background: var(--badge-bg);
+        color: var(--badge-fg);
+        font-size: 10px;
+        padding: 1px 5px;
+        margin-left: 6px;
+        letter-spacing: 0.03em;
+      }
+
+      /* Loading spinner */
+      .loading {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border: 2px solid var(--loading-border);
+        border-top: 2px solid var(--loading-top);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        vertical-align: middle;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* Token modal */
+      .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: var(--modal-overlay);
+        backdrop-filter: blur(4px);
+        z-index: 2000;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .modal-overlay.active {
+        display: flex;
+      }
+      body.modal-open {
+        overflow: hidden;
+      }
+      .modal {
+        background: var(--modal-bg);
+        border: 1px solid var(--modal-border);
+        padding: 16px;
+        width: 100%;
+        max-width: 380px;
+        max-height: calc(100vh - 40px);
+        max-height: calc(100dvh - 40px);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+      }
+      .modal-title {
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+      }
+      .modal-close {
+        background: none;
+        border: none;
+        color: var(--fg);
+        font-size: 20px;
+        cursor: pointer;
+        line-height: 1;
+        padding: 4px;
+        margin: -4px;
+        opacity: 0.4;
+        transition: opacity 0.15s;
+      }
+      .modal-close:hover {
+        opacity: 1;
+      }
+
+      /* Wallet modal options */
+      .wallet-option {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        background: var(--modal-bg);
+        border: 1px solid var(--border);
+        color: var(--fg);
+        cursor: pointer;
+        margin-bottom: 8px;
+        transition:
+          background 0.15s,
+          color 0.15s;
+      }
+      .wallet-option:hover {
+        background: var(--btn-bg);
+        color: var(--btn-fg);
+      }
+      .wallet-option-icon {
+        font-size: 1.5rem;
+      }
+      .wallet-option-name {
+        font-weight: 600;
+      }
+      .wallet-option.disconnect {
+        border-color: #f00;
+        color: #f00;
+        justify-content: center;
+      }
+      .wallet-option.disconnect:hover {
+        background: #f00;
+        color: #fff;
+      }
+
+      /* Token list in modal */
+      .token-list-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        cursor: pointer;
+        transition: background 0.12s;
+        border-radius: 4px;
+        margin: 0 4px;
+      }
+      .token-list-item:hover {
+        background: var(--list-hover);
+      }
+      .token-list-item.highlight {
+        background: var(--surface);
+        outline: 1px solid var(--border);
+        outline-offset: -1px;
+      }
+      .token-balance {
+        margin-left: auto;
+        font-size: 11px;
+        color: var(--token-bal);
+        font-variant-numeric: tabular-nums;
+        opacity: 0.7;
+      }
+
+      /* Custom token input */
+      .custom-token-input,
+      .token-search {
+        width: 100%;
+        padding: 10px 0;
+        border: none;
+        border-bottom: 1px solid var(--border);
+        font-size: 14px;
+        font-family: inherit;
+        outline: none;
+        background: transparent;
+        color: var(--fg);
+      }
+      .custom-token-input {
+        margin-top: 8px;
+        font-size: 12px;
+        padding: 8px 0;
+      }
+      .custom-token-input:focus,
+      .token-search:focus {
+        border-bottom-color: var(--fg);
+      }
+      .token-search-status {
+        font-size: 11px;
+        color: var(--fg-dim);
+        margin: 4px 0 6px;
+        min-height: 14px;
+      }
+      .token-search-status.error {
+        color: #e74c3c;
+      }
+      .token-group-label {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--fg-dim);
+        padding: 10px 16px 4px;
+        margin-top: 4px;
+        border-top: 1px solid var(--group-border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        opacity: 0.6;
+      }
+      .wei-list-remove {
+        background: none;
+        border: none;
+        color: var(--remove-fg);
+        font-size: 14px;
+        cursor: pointer;
+        padding: 0 4px;
+        margin: 0;
+        line-height: 1;
+      }
+      .wei-list-remove:hover {
+        color: #e74c3c;
+      }
+      #tokenList {
+        scrollbar-width: thin;
+        scrollbar-color: var(--border) transparent;
+      }
+      #tokenList::-webkit-scrollbar {
+        width: 4px;
+      }
+      #tokenList::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 2px;
+      }
+      #tokenList::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      /* Status */
+      .status {
+        font-size: 13px;
+        margin-top: 16px;
+        padding: 12px;
+        background: var(--surface);
+        color: var(--fg);
+        display: none;
+      }
+      .status.show {
+        display: block;
+      }
+      .status.error {
+        background: var(--status-error);
+      }
+      .status.success {
+        background: var(--status-success);
+      }
+
+      /* Footer */
+      .site-footer {
+        position: relative;
+        text-align: center;
+        padding: 48px 20px;
+        font-size: 11px;
+        opacity: 0.35;
+        letter-spacing: 0.5px;
+        font-weight: 300;
+      }
+      .site-footer a {
+        color: inherit;
+        text-decoration: underline;
+        margin: 0 2px;
+      }
+      .site-footer a:hover {
+        opacity: 0.7;
+      }
+
+      /* Responsive */
+      @media (max-width: 700px) {
+        body {
+          padding: 80px 16px 20px;
+        }
+        .wallet {
+          top: 16px;
+          right: 16px;
+        }
+        .wallet button {
+          padding: 10px 14px;
+          font-size: 11px;
+        }
+        h1 {
+          margin-bottom: 30px;
+          font-size: 13px;
+        }
+        input[type="number"],
+        input[type="text"] {
+          font-size: 20px;
+          padding: 8px 0;
+        }
+        .amount-input {
+          font-size: 20px;
+        }
+        .swap-btn {
+          padding: 12px 20px;
+        }
+        .modal {
+          max-width: 100%;
+          margin: 0 10px;
+          max-height: calc(100vh - 40px);
+          overflow-y: auto;
+        }
+        .dark-toggle {
+          top: 18px;
+          left: 16px;
+        }
+        .swap-card {
+          padding: 20px 16px;
+        }
+        .quick-token {
+          min-width: 26px;
+          min-height: 26px;
+          padding: 4px;
+        }
+      }
+      @media (max-width: 380px) {
+        body {
+          padding: 70px 12px 20px;
+        }
+        input[type="number"],
+        input[type="text"] {
+          font-size: 18px;
+        }
+        .amount-input {
+          font-size: 18px;
+        }
+        h1 {
+          font-size: 12px;
+        }
+        .swap-card {
+          padding: 16px 12px;
+        }
+        .token-select {
+          padding: 4px 2px;
+          gap: 4px;
+          font-size: 11px;
+        }
+        .token-icon {
+          width: 20px;
+          height: 20px;
+        }
+        .quick-tokens {
+          gap: 4px;
+        }
+        .quick-token {
+          width: 24px;
+          height: 24px;
+        }
+        .quick-token .qi {
+          width: 20px;
+          height: 20px;
+        }
+        .quote-info {
+          padding: 10px 8px;
+          font-size: 12px;
+        }
+        .balance {
+          font-size: 11px;
+          gap: 4px;
+          flex-wrap: wrap;
+        }
+        .max-btn {
+          font-size: 9px;
+          padding: 2px 3px;
+        }
+      }
+
+      /* Info tooltip */
+      .info-tip {
+        position: relative;
+        display: inline-flex;
+      }
+      .info-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+        color: var(--info-border);
+        cursor: help;
+        opacity: 0.4;
+      }
+      .info-icon:hover {
+        opacity: 0.8;
+      }
+      .info-icon:hover {
+        border-color: var(--info-hover);
+        color: var(--info-hover);
+      }
+      .info-tooltip {
+        display: none;
+        position: absolute;
+        top: 28px;
+        left: 0;
+        width: 280px;
+        padding: 14px 16px;
+        background: var(--info-tip-bg);
+        border: 1px solid var(--info-tip-border);
+        font-size: 12px;
+        font-weight: 400;
+        line-height: 1.6;
+        letter-spacing: 0;
+        text-transform: none;
+        color: var(--info-tip-fg);
+        z-index: 200;
+        box-shadow: var(--info-tip-shadow);
+      }
+      .info-tip.open .info-tooltip {
+        display: block;
+      }
+
+      /* Dark mode toggle */
+      .dark-toggle {
+        position: fixed;
+        top: max(22px, env(safe-area-inset-top, 0px));
+        left: max(20px, env(safe-area-inset-left, 0px));
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        margin: 0;
+        opacity: 0.5;
+        transition: opacity 0.2s;
+        z-index: 100;
+        background: #000;
+        border-radius: 50%;
+        width: 14px;
+        height: 14px;
+      }
+      :root.dark .dark-toggle {
+        background: #fff;
+      }
+      .dark-toggle:hover {
+        opacity: 1;
+      }
+
+      /* Swap card container */
+      .swap-card {
+        border: 1px solid var(--card-border);
+        border-radius: 0;
+        padding: 24px;
+        background: var(--bg);
+      }
+
+      /* Receiver accordion */
+      .receiver-toggle {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        user-select: none;
+        padding: 8px 0;
+        margin-top: 4px;
+        border-top: 1px solid var(--card-border);
+      }
+      .receiver-toggle label {
+        cursor: pointer;
+        pointer-events: none;
+        margin: 0;
+      }
+      /* Slider style */
+      .slidecontainer {
+        margin-top: 16px;
+      }
+      .slider {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 100%;
+        height: 2px;
+        background: var(--border-muted);
+        outline: none;
+        cursor: pointer;
+      }
+      .slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: var(--btn-bg);
+        cursor: pointer;
+        transition: transform 0.1s ease;
+      }
+      .slider::-webkit-slider-thumb:hover {
+        transform: scale(1.2);
+      }
+      .slider::-moz-range-thumb {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: var(--btn-bg);
+        cursor: pointer;
+        border: none;
+        transition: transform 0.1s ease;
+      }
+      .slider::-moz-range-thumb:hover {
+        transform: scale(1.2);
+      }
+      /* ---- Maybify notifications ---- */
+      #maybifyNotifContainer {
+        position: fixed;
+        bottom: 16px;
+        right: 16px;
+        z-index: 9000;
+        display: flex;
+        flex-direction: column-reverse;
+        gap: 8px;
+        max-width: 300px;
+        pointer-events: none;
+      }
+      .maybify-notif {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px 14px;
+        border-radius: 8px;
+        border: 1px solid var(--card-border);
+        background: var(--bg);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        pointer-events: all;
+        opacity: 1;
+        transition:
+          opacity 0.3s,
+          transform 0.3s;
+        position: relative;
+      }
+      .maybify-notif-fade-out {
+        opacity: 0;
+        transform: translateX(20px);
+      }
+      .maybify-notif-icon {
+        font-size: 20px;
+        flex-shrink: 0;
+        line-height: 1;
+        margin-top: 1px;
+      }
+      .maybify-notif-body {
+        flex: 1;
+        min-width: 0;
+      }
+      .maybify-notif-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--fg);
+        margin-bottom: 2px;
+      }
+      .maybify-notif-desc {
+        font-size: 12px;
+        color: var(--fg-muted);
+        line-height: 1.4;
+      }
+      .maybify-notif-link {
+        display: inline-block;
+        margin-top: 4px;
+        font-size: 11px;
+        color: var(--fg-muted);
+        text-decoration: underline;
+      }
+      .maybify-notif-close {
+        position: absolute;
+        top: 6px;
+        right: 8px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: var(--fg-dim);
+        font-size: 16px;
+        line-height: 1;
+        padding: 0;
+      }
+      .maybify-notif-close:hover {
+        color: var(--fg);
+      }
+      .maybify-notif-pending {
+        border-left: 3px solid #888;
+      }
+      .maybify-notif-won {
+        border-left: 3px solid #4a4;
+      }
+      .maybify-notif-lost {
+        border-left: 3px solid #a44;
+      }
+      .maybify-notif-context {
+        font-size: 11px;
+        color: var(--fg-dim);
+        line-height: 1.4;
+        margin-top: 2px;
+      }
+      .maybify-notif-elapsed {
+        font-size: 11px;
+        color: var(--fg-dim);
+        margin-top: 2px;
+      }
+      @keyframes notif-enter {
+        from {
+          opacity: 0;
+          transform: translateX(16px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+      .maybify-notif {
+        animation: notif-enter 0.2s ease-out;
+      }
+      @keyframes notif-resolve {
+        0% {
+          transform: scale(1);
+        }
+        35% {
+          transform: scale(1.04);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+      .maybify-notif-resolving {
+        animation: notif-resolve 0.35s ease-out;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.45;
+        }
+      }
+      .maybify-notif-pending .maybify-notif-icon {
+        animation: pulse 2s ease-in-out infinite;
+      }
+    </style>
+  </head>
+  <body>
+    <button
+      class="dark-toggle"
+      onclick="toggleDark()"
+      title="Toggle dark mode"
+    ></button>
+
+    <!-- Wallet button (fixed top-right) -->
+    <div class="wallet">
+      <button id="walletBtn" onclick="toggleWallet()">connect</button>
+    </div>
+
+    <h1 style="display: flex; align-items: center; gap: 8px">
+      Maybe Swap
+      <span class="info-tip"
+        ><span
+          class="info-icon"
+          onclick="
+            this.parentElement.classList.toggle('open');
+            event.stopPropagation();
+          "
+          ><svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="16" x2="12" y2="12" />
+            <line x1="12" y1="8" x2="12.01" y2="8" /></svg></span
+        ><span class="info-tooltip"
+          ><a
+            href="https://basescan.org/address/0x06f159ff41aa2f3777e6b504242cab18bb60dfe4#code"
+            target="_blank"
+            rel="noopener"
+            style="color: inherit; font-weight: 600"
+            >MaybeZRouter</a
+          >
+          is a fully on-chain DEX aggregator. Routes are discovered and
+          optimized by MaybeZQuoter directly on the blockchain — no off-chain
+          APIs, no solvers, no servers.<br /><br />Aggregates Uniswap V2/V3/V4,
+          and zAMM, with atomic multi-hop execution, split routing, and per-leg
+          slippage protection.<br /><br />Zero protocol fees. No intermediaries.
+          Your trade goes directly from your wallet to the liquidity pools. Both
+          contracts are customizes versions of
+          <a
+            href="https://zfi.wei.is"
+            target="_blank"
+            rel="noopener"
+            style="color: inherit; font-weight: 600"
+            >zFi</a
+          >
+          contracts</span
+        ></span
+      >
+    </h1>
+
+    <!-- Swap card -->
+    <div class="swap-card">
+      <!-- From token section -->
+      <div class="section token-section">
+        <div class="token-header">
+          <label style="margin: 0">From</label>
+          <div class="token-select" onclick="openTokenModal('from')">
+            <span id="fromTokenIcon" class="token-icon"></span>
+            <span id="fromTokenSymbol" class="token-symbol">ETH</span>
+            <span class="token-chevron">&#9662;</span>
+          </div>
+        </div>
+        <input
+          type="number"
+          id="fromAmount"
+          class="amount-input"
+          placeholder="0.0"
+          step="any"
+        />
+        <div class="balance">
+          <span id="fromBalance">Balance: --</span>
+          <span style="color: var(--fg-dim)">&middot;</span>
+          <button class="max-btn" type="button" onclick="setPercentBalance(25)">
+            25%
+          </button>
+          <button class="max-btn" type="button" onclick="setPercentBalance(50)">
+            50%
+          </button>
+          <button class="max-btn" type="button" onclick="setPercentBalance(75)">
+            75%
+          </button>
+          <button
+            class="max-btn"
+            type="button"
+            onclick="setPercentBalance(100)"
+          >
+            100%
+          </button>
+        </div>
+      </div>
+
+      <!-- Swap direction arrow -->
+      <div class="swap-arrow">
+        <button class="arrow-btn" onclick="swapTokens()">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke-width="2.5"
+          >
+            <path d="M7 10L12 15L17 10" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- To token section -->
+      <div class="section token-section">
+        <div class="token-header">
+          <label style="margin: 0">To</label>
+          <div style="display: flex; align-items: center; gap: 10px">
+            <div id="quickTokens" class="quick-tokens"></div>
+            <div class="token-select" onclick="openTokenModal('to')">
+              <span id="toTokenIcon" class="token-icon"></span>
+              <span id="toTokenSymbol" class="token-symbol">zOrg</span>
+              <span class="token-chevron">&#9662;</span>
+            </div>
+          </div>
+        </div>
+        <input
+          type="text"
+          id="toAmount"
+          class="amount-input"
+          placeholder="0.0"
+          readonly
+        />
+        <div id="toBalance" class="balance">Balance: --</div>
+      </div>
+
+      <!-- Quote info -->
+      <div id="quoteInfo" class="quote-info" style="display: none">
+        <div class="quote-row">
+          <span>Route:</span><span id="routeInfo">--</span
+          ><a
+            id="chartLink"
+            href="#"
+            target="_blank"
+            rel="noopener"
+            title="View pool chart"
+            style="
+              display: none;
+              margin-left: 4px;
+              opacity: 0.5;
+              transition: opacity 0.15s;
+              line-height: 1;
+            "
+            onmouseover="this.style.opacity = '1'"
+            onmouseout="this.style.opacity = '0.5'"
+            ><svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg
+          ></a>
+        </div>
+        <div class="quote-row" id="impactRow">
+          <span>Impact:</span><span id="impactInfo">--</span>
+        </div>
+        <div class="quote-row" id="slippageRow">
+          <span>Slippage:</span>
+          <span class="slip-inline">
+            <input
+              id="slippagePct"
+              class="slip-num"
+              type="number"
+              inputmode="decimal"
+              min="0"
+              max="20"
+              step="0.1"
+              value="1"
+              aria-label="Slippage (%)"
+            />
+            <span class="slip-unit">%</span>
+            <svg
+              width="10"
+              height="10"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              style="opacity: 0.35; margin-left: -2px"
+            >
+              <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+            </svg>
+            <span
+              id="splitSlipNote"
+              style="
+                display: none;
+                font-size: 11px;
+                color: var(--fg-muted);
+                margin-left: 6px;
+              "
+            ></span>
+          </span>
+        </div>
+        <div class="quote-row" id="refreshRow">
+          <span class="quote-countdown" id="quoteCountdown"></span>
+          <span>
+            <button
+              class="refresh-btn"
+              onclick="manualRefresh()"
+              title="Refresh quote"
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M21 2v6h-6" />
+                <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+                <path d="M3 22v-6h6" />
+                <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+              </svg>
+            </button>
+          </span>
+        </div>
+        <div id="quoteRate" class="quote-rate" style="display: none"></div>
+        <div id="allRoutesWrap" style="display: none">
+          <div class="routes-toggle" onclick="toggleAllRoutes()">
+            <span class="chevron" id="routesChevron" style="font-size: 9px"
+              >&#9654;</span
+            >
+            <span>All routes</span>
+          </div>
+          <div
+            id="allRoutesList"
+            class="routes-list"
+            style="display: none"
+          ></div>
+        </div>
+      </div>
+
+      <!-- Receiver (optional) -->
+      <!-- <div style="min-height: 46px">
+        <div
+          class="receiver-toggle"
+          onclick="
+            const w = document.getElementById('receiverWrap');
+            const open = w.style.display !== 'none';
+            w.style.display = open ? 'none' : 'block';
+            this.querySelector('.chevron').textContent = open
+              ? '\u25B6'
+              : '\u25BC';
+          "
+        >
+          <span class="chevron" style="font-size: 9px; color: var(--fg-muted)"
+            >&#9654;</span
+          >
+          <label style="margin: 0; cursor: pointer; pointer-events: none"
+            >Receiver</label
+          >
+        </div>
+        <div id="receiverWrap" style="display: none; margin-top: 8px">
+          <input
+            type="text"
+            id="receiverAddress"
+            placeholder="0x address, name.wei, or name.eth"
+            style="font-size: 14px; padding: 8px 0"
+          />
+          <div
+            id="receiverResolved"
+            style="
+              display: none;
+              font-size: 12px;
+              margin-top: 4px;
+              color: var(--fg-muted);
+              word-break: break-all;
+            "
+          ></div>
+        </div>
+      </div> -->
+
+      <!-- Maybifying probability slider -->
+      <div class="section slidecontainer">
+        <label>Probability of swap happening</label>
+        <div style="display: flex; align-items: center; gap: 12px">
+          <input
+            type="range"
+            min="5"
+            max="95"
+            step="1"
+            value="50"
+            class="slider"
+            id="slider"
+            aria-label="Win probability (%)"
+          />
+          <span class="slip-inline">
+            <input
+              id="sliderValue"
+              class="slip-num"
+              type="number"
+              inputmode="decimal"
+              min="5"
+              max="95"
+              step="1"
+              value="50"
+              aria-label="Probability (%)"
+            />
+            <span class="slip-unit">%</span>
+          </span>
+        </div>
+      </div>
+
+      <!-- Swap button -->
+      <button id="swapBtn" class="swap-btn" disabled>Connect Wallet</button>
+    </div>
+    <!-- end swap-card -->
+
+    <!-- Status -->
+    <div id="status" class="status"></div>
+
+    <!-- Wallet Modal -->
+    <div
+      class="modal-overlay"
+      id="walletModal"
+      onclick="if (event.target === this) closeWalletModal();"
+    >
+      <div class="modal">
+        <div class="modal-header">
+          <div class="modal-title">Connect Wallet</div>
+          <button class="modal-close" onclick="closeWalletModal()">
+            &times;
+          </button>
+        </div>
+        <div class="modal-body" id="walletOptions"></div>
+      </div>
+    </div>
+
+    <!-- Token Modal -->
+    <div
+      class="modal-overlay"
+      id="tokenModal"
+      onclick="if (event.target === this) closeTokenModal();"
+    >
+      <div class="modal">
+        <div class="modal-header">
+          <div class="modal-title">Select Token</div>
+          <button class="modal-close" onclick="closeTokenModal()">
+            &times;
+          </button>
+        </div>
+        <input
+          type="text"
+          id="tokenSearchInput"
+          class="token-search"
+          placeholder="Search or enter list.wei"
+          autocomplete="off"
+        />
+        <div id="weiListStatus" class="token-search-status"></div>
+        <div id="tokenList" style="max-height: 320px; overflow-y: auto"></div>
+        <div
+          style="
+            border-top: 1px solid var(--border);
+            padding-top: 10px;
+            margin-top: 8px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+          "
+        >
+          <input
+            type="text"
+            id="customTokenAddress"
+            class="custom-token-input"
+            placeholder="Paste token address"
+            style="margin: 0; flex: 1"
+          />
+          <button
+            style="white-space: nowrap; font-size: 12px; padding: 6px 12px"
+            onclick="addCustomToken()"
+          >
+            Add
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer web ring -->
+    <div class="site-footer">
+      <!-- <a href="./domains/">Domains</a> &middot;
+      <a href="./dao/">DAO</a> &middot; <a href="./ico/">ICO</a> &middot; built
+      by
+      <a
+        href="https://opensea.io/collection/zorgz"
+        target="_blank"
+        rel="noopener"
+        ><svg
+          width="14"
+          height="14"
+          viewBox="0 0 16 16"
+          xmlns="http://www.w3.org/2000/svg"
+          style="
+            vertical-align: middle;
+            margin: 0 2px;
+            image-rendering: pixelated;
+          "
+        >
+          <rect width="16" height="16" fill="#0a0a0a" />
+          <rect x="3" y="1" width="1" height="1" fill="#e8e8e0" />
+          <rect x="5" y="2" width="1" height="1" fill="#e8e8e0" />
+          <rect x="10" y="2" width="1" height="1" fill="#e8e8e0" />
+          <rect x="12" y="1" width="1" height="1" fill="#e8e8e0" />
+          <rect x="4" y="4" width="8" height="1" fill="#e8e8e0" />
+          <rect x="3" y="5" width="10" height="1" fill="#e8e8e0" />
+          <rect x="2" y="6" width="12" height="3" fill="#e8e8e0" />
+          <rect x="3" y="9" width="10" height="1" fill="#e8e8e0" />
+          <rect x="4" y="10" width="8" height="1" fill="#e8e8e0" />
+          <rect x="3" y="6" width="3" height="2" fill="#0a0a0a" />
+          <rect x="10" y="6" width="3" height="2" fill="#0a0a0a" />
+          <rect x="5" y="11" width="2" height="1" fill="#e8e8e0" />
+          <rect x="9" y="11" width="2" height="1" fill="#e8e8e0" />
+          <rect x="2" y="12" width="3" height="1" fill="#e8e8e0" />
+          <rect x="7" y="12" width="2" height="1" fill="#e8e8e0" />
+          <rect x="11" y="12" width="3" height="1" fill="#e8e8e0" />
+          <rect x="1" y="13" width="2" height="1" fill="#e8e8e0" />
+          <rect x="13" y="13" width="2" height="1" fill="#e8e8e0" /></svg></a
+      ><a href="./dao/#/dao/1/0x5E58BA0e06ED0F5558f83bE732a4b899a674053E"
+        >zOrg</a
+      >
+      &middot;
+      <a href="https://x.com/z_fi_" target="_blank" rel="noopener" title="X"
+        ><svg
+          width="14"
+          height="14"
+          viewBox="0 0 300 300.251"
+          xmlns="http://www.w3.org/2000/svg"
+          style="vertical-align: middle; fill: currentColor"
+        >
+          <path
+            d="M178.57 127.15 290.27 0h-26.46l-97.03 110.38L89.34 0H0l117.13 166.93L0 300.25h26.46l102.4-116.59 81.8 116.59h89.34M36.01 19.54H76.66l187.13 262.13h-40.66"
+          /></svg
+      ></a> -->
+      <div style="margin-top: 8px; letter-spacing: 1px">
+        <a
+          href=""
+          target="_blank"
+          rel="noopener"
+          style="text-decoration: none; color: inherit"
+          >maybe swap</a
+        >
+      </div>
+      <!-- <div
+        style="
+          margin-top: 4px;
+          font-size: 11px;
+          opacity: 0.5;
+          letter-spacing: 0.5px;
+        "
+      >
+        the most secure-by-default exchange that does everything onchain
+      </div> -->
+    </div>
+
+    <div id="maybifyNotifContainer"></div>
+    <script src="./ethers.min.js"></script>
+    <script src="./walletconnect.min.js"></script>
+    <script src="./decimal.js"></script>
+    <script src="./index.js"></script>
+    <script
+      defer
+      src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015"
+      integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ=="
+      data-cf-beacon='{"version":"2024.11.0","token":"8510b592df8f4a69b87bbf8e840f200c","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}'
+      crossorigin="anonymous"
+    ></script>
+  </body>
+</html>

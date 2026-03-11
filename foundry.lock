@@ -1,0 +1,32 @@
+{
+  "lib/chainlink-evm": {
+    "tag": {
+      "name": "v0.3.3",
+      "rev": "793106cd598da8b2762958880300787b0b361fa1"
+    }
+  },
+  "lib/forge-std": {
+    "tag": {
+      "name": "v1.14.0",
+      "rev": "1801b0541f4fda118a10798fd3486bb7051c5dd6"
+    }
+  },
+  "lib/hookmate": {
+    "tag": {
+      "name": "v0.5.1",
+      "rev": "6c43b0ea438a09782c808a7508f94aaae912ad5f"
+    }
+  },
+  "lib/uniswap-hooks": {
+    "tag": {
+      "name": "v1.2.1",
+      "rev": "acbd604c409a827f7f98c9517236da860c4fca1a"
+    }
+  },
+  "lib/zFi": {
+    "rev": "0705b30e30a914afaec33f344a56fd525bf9d8c0"
+  },
+  "lib/zRouter": {
+    "rev": "721a6171d0fe04246a672d47114377814f39a703"
+  }
+}

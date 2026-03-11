@@ -1,0 +1,26 @@
+[profile.default]
+bytecode_hash = "none"
+evm_version = "prague"
+ffi = true
+fs_permissions = [{access = "read-write", path = "./deployments"}]
+libs = ["lib"]
+out = "out"
+solc_version = "0.8.33"
+src = "src"
+via_ir = true
+optimizer = true
+optimizer_runs = 9999999
+
+# fork_block_number = 24483886 # was for eth mainnet
+# fork_block_number = 24471149 # was for eth mainnet
+# fork_block_number = 42661800 # is for base 
+# fork_block_number = 42673375 
+# fork_block_number = 42676523
+
+[lint]
+exclude_lints = ["screaming-snake-case-immutable", "screaming-snake-case-const"]
+lint_on_build = false
+
+[rpc_endpoints]
+main = "https://eth.llamarpc.com/"
+
