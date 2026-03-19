@@ -197,7 +197,7 @@ contract MaybeHook is
         return requestIdToMaybifySwap[requestId];
     }
 
-    // Only need: beforeInitialize + afterSwap (+ afterSwapReturnDelta)
+    // Only need: beforeInitialize + beforeSwap (+ beforeSwapReturnDelta) + afterSwap (+ afterSwapReturnDelta)
     function getHookPermissions()
         public
         pure
