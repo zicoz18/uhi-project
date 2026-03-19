@@ -39,6 +39,7 @@ contract MaybeHook is
     PoolKey public poolKey;
     IzRouter public zRouter;
     uint256 public protocolFeeInBps;
+    uint256 public lpFeeShareInBps;
     uint32 public vrfCallbackGasLimit;
 
     // Inside afterSwap() we are getting the maybify id yet we cant return that value to external contracts like routers
@@ -65,6 +66,11 @@ contract MaybeHook is
         uint256 maybifyAmount;
         uint256 maybifiedAt;
         uint256 currentProtocolFeeInBps;
+    }
+
+    enum UnlockCallbackType {
+        Swap,
+        DonateLpFee
     }
 
     enum SwapBackState {
@@ -101,6 +107,7 @@ contract MaybeHook is
     );
 
     error ProtocolFeeCantExceedHundredPercent(uint256 protocolFee);
+    error LPFeeShareCantExceedHundredPercent(uint256 lpFeeShare);
     error PoolMustIncludeEthAndMaybe();
     error HookDataOnlySupportedForSwappingFromMaybe();
     error HookDataOnlySupportedForExactIn();
@@ -132,6 +139,7 @@ contract MaybeHook is
         IMaybeToken _maybeToken,
         IzRouter _zRouter,
         uint256 _protocolFeeInBps,
+        uint256 _lpFeeShareInBps,
         uint256 _vrfTimeout,
         uint16 _vrfMinimumRequestConfirmations,
         uint32 _vrfCallbackGasLimit,
@@ -144,6 +152,9 @@ contract MaybeHook is
         if (_protocolFeeInBps > HUNDRED_IN_BPS)
             revert ProtocolFeeCantExceedHundredPercent(_protocolFeeInBps);
         protocolFeeInBps = _protocolFeeInBps;
+        if (_lpFeeShareInBps > HUNDRED_IN_BPS)
+            revert LPFeeShareCantExceedHundredPercent(_lpFeeShareInBps);
+        lpFeeShareInBps = _lpFeeShareInBps;
         vrfTimeout = _vrfTimeout;
         vrfMinimumRequestConfirmations = _vrfMinimumRequestConfirmations;
         vrfCallbackGasLimit = _vrfCallbackGasLimit;
@@ -156,6 +167,14 @@ contract MaybeHook is
         if (_protocolFeeInBps > HUNDRED_IN_BPS)
             revert ProtocolFeeCantExceedHundredPercent(_protocolFeeInBps); // protocol fee cannot exceed %100.00
         protocolFeeInBps = _protocolFeeInBps;
+    }
+
+    function setLPFeeShareInBps(
+        uint256 _lpFeeShareInBps
+    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (_lpFeeShareInBps > HUNDRED_IN_BPS)
+            revert LPFeeShareCantExceedHundredPercent(_lpFeeShareInBps); // lp fee share fee cannot exceed %100.00
+        lpFeeShareInBps = _lpFeeShareInBps;
     }
 
     // functionality to update gas limit for vrf, can only be called by owner
@@ -297,20 +316,13 @@ contract MaybeHook is
 
         // Return delta is in unspecified currency (MAYBE). Positive => hook is owed/takes it.
         hookDeltaUnspecified = maybeDelta;
+        uint256 maybifyAmount = uint256(uint128(maybeDelta));
 
         // Pull the MAYBE into the hook
-        key.currency1.take(
-            poolManager,
-            address(this),
-            uint256(uint128(maybeDelta)),
-            false
-        );
+        key.currency1.take(poolManager, address(this), maybifyAmount, false);
 
         // maybify
-        _maybify(
-            uint256(uint128(maybeDelta)),
-            abi.decode(hookData, (MaybifyParams))
-        );
+        _maybify(maybifyAmount, abi.decode(hookData, (MaybifyParams)));
 
         return (BaseHook.afterSwap.selector, hookDeltaUnspecified);
     }
@@ -328,8 +340,21 @@ contract MaybeHook is
         }
         // NOTE: Cannot maybify for 0 tokens
         if (maybifyAmount == 0) revert CannotMaybifyForZeroTokens();
+        uint256 currentProtocolFeeInBps = protocolFeeInBps;
         // burns the tokens directly from this hook contract as they are taken inside afterSwap
         maybeToken.burn(maybifyAmount);
+        // reward liquidity providers as they are the ones that allow maybifying by providing liquidity, by minting lp share of protocol fees to them
+        uint256 lpFeeAmount = calculateLPFeeAmount(
+            maybifyAmount,
+            maybifyParams.probabilityInBps,
+            currentProtocolFeeInBps
+        );
+        // Mint MAYBE tokens for lp fees to pool manager
+        poolManager.sync(Currency.wrap(address(maybeToken)));
+        maybeToken.mint(address(poolManager), lpFeeAmount);
+        poolManager.settle();
+        // Donate those minted tokens to liquidity providers
+        poolManager.donate(poolKey, 0, lpFeeAmount, "");
         // NOTE: request randomness, requires the ETH to be sent when calling, we are able to do that because this hook contract takes in the ETH inside beforeSwap
         (uint256 maybifyId /* uint256 vrfFeeInEth */, ) = _requestRandomness();
         // latestRegisteredMaybifyId value is set so that external contract can get the maybify id for their swap cuz we cant return value inside afterSwap()
@@ -339,7 +364,6 @@ contract MaybeHook is
             revert MaybificationAlreadyInProgressForGivenId(maybifyId);
         }
         // NOTE: register maybify data for user to be used when resolving
-        uint256 currentProtocolFeeInBps = protocolFeeInBps;
         requestIdToMaybifySwap[maybifyId] = MaybifySwap({
             maybifyAmount: maybifyAmount,
             maybifyParams: maybifyParams,
@@ -374,8 +398,19 @@ contract MaybeHook is
         }
         // NOTE: Cannot maybify for 0 tokens
         if (maybifyAmount == 0) revert CannotMaybifyForZeroTokens();
+        uint256 currentProtocolFeeInBps = protocolFeeInBps;
         // burn for registering a maybification from the msg.sender
         maybeToken.burnFrom(msg.sender, maybifyAmount);
+        // reward liquidity providers as they are the ones that allow maybifying by providing liquidity, by minting lp share of protocol fees to them
+        uint256 lpFeeAmount = calculateLPFeeAmount(
+            maybifyAmount,
+            maybifyParams.probabilityInBps,
+            currentProtocolFeeInBps
+        );
+        // poolManager is not locked here so we need to unlock it to be able to mint+donate
+        poolManager.unlock(
+            abi.encode(UnlockCallbackType.DonateLpFee, lpFeeAmount)
+        );
         // NOTE: request randomness, msg.sender is expected to call this func with some msg.value to be able to compansate for VRF fee that this contract should be paying
         (maybifyId /* uint256 vrfFeeInEth */, ) = _requestRandomness();
         // latestRegisteredMaybifyId value is set so that external contract can get the maybify id for their swap cuz we cant return value inside afterSwap()
@@ -387,7 +422,6 @@ contract MaybeHook is
             revert MaybificationAlreadyInProgressForGivenId(maybifyId);
         }
         // NOTE: register maybify data for user to be used when resolving
-        uint256 currentProtocolFeeInBps = protocolFeeInBps;
         requestIdToMaybifySwap[maybifyId] = MaybifySwap({
             maybifyAmount: maybifyAmount,
             maybifyParams: maybifyParams,
@@ -421,6 +455,25 @@ contract MaybeHook is
                     VRFV2PlusClient.ExtraArgsV1({nativePayment: true})
                 )
             );
+    }
+
+    function calculateLPFeeAmount(
+        uint256 maybifyAmount,
+        uint256 probabilityInBps,
+        uint256 currentProtocolFeeInBps
+    ) internal view returns (uint256 lpFeeAmount) {
+        uint256 potentialMintMultiplierDecreaseByProtocolFeeInWad = (currentProtocolFeeInBps *
+                1e18) / probabilityInBps;
+        uint256 potentialProtocolFeeAmount = FullMath.mulDiv(
+            potentialMintMultiplierDecreaseByProtocolFeeInWad,
+            maybifyAmount,
+            1e18
+        );
+        // NOTE: Remaining share of the fee is burned to decrease MAYBE supply and benefit MAYBE holders
+        // NOTE: As a result, MAYBE is expected to be deflationary
+        lpFeeAmount =
+            (potentialProtocolFeeAmount * lpFeeShareInBps) /
+            HUNDRED_IN_BPS;
     }
 
     function fulfillRandomWords(
@@ -548,6 +601,7 @@ contract MaybeHook is
         BalanceDelta delta = abi.decode(
             poolManager.unlock(
                 abi.encode(
+                    UnlockCallbackType.Swap,
                     poolKey,
                     SwapParams({
                         zeroForOne: false,
@@ -631,10 +685,30 @@ contract MaybeHook is
     function unlockCallback(
         bytes calldata rawData
     ) external onlyPoolManager returns (bytes memory) {
+        UnlockCallbackType callbackType = abi.decode(
+            rawData,
+            (UnlockCallbackType)
+        );
+
+        if (callbackType == UnlockCallbackType.DonateLpFee) {
+            // Donate LP fee: mint MAYBE and donate to liquidity providers
+            (, uint256 lpFeeAmount) = abi.decode(
+                rawData,
+                (UnlockCallbackType, uint256)
+            );
+            poolManager.sync(Currency.wrap(address(maybeToken)));
+            maybeToken.mint(address(poolManager), lpFeeAmount);
+            poolManager.settle();
+            poolManager.donate(poolKey, 0, lpFeeAmount, "");
+            return "";
+        }
+
+        // UnlockCallbackType.Swap: swap MAYBE -> ETH
         (
+            ,
             PoolKey memory maybeEthPoolKey,
             SwapParams memory swapParamsForMaybeToEth
-        ) = abi.decode(rawData, (PoolKey, SwapParams));
+        ) = abi.decode(rawData, (UnlockCallbackType, PoolKey, SwapParams));
         // Call to swap MAYBE for ETH
         BalanceDelta delta = poolManager.swap(
             maybeEthPoolKey,

@@ -14,7 +14,7 @@ const CHAIN_ID = 8453;
 const ZQUOTER_ADDRESS = "0x70453112cF4dc06b3873D66114844Ee51ff755F1";
 const ZQUOTERBASE_ADDRESS = "0xdEEac226B7E6146E79bcca4dd7224F131d631a8C";
 const ZROUTER_ADDRESS = "0x06f159ff41Aa2f3777E6B504242cAB18bB60dFe4";
-const MAYBE_ROUTER_ADDRESS = "0x5A1a915B00D9a376A3b12d3b5e38439b657f785a";
+const MAYBE_ROUTER_ADDRESS = "0x15b3E2D12aCE82878fe8c5146418b1C48bDc9095";
 const MAYBE_ADDRESS = "0xfA445199d5AA54E1b8E5d8D93492743425ce5D21";
 const USDC_ADDRESS = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 const USDT_ADDRESS = "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2";
@@ -28,11 +28,11 @@ const V4_ROUTER_ADDRESS = "0x00000000000044a361Ae3cAc094c9D1b14Eece97";
 const MULTICALL3_ADDRESS = "0xcA11bde05977b3631167028862bE2a173976CA11";
 const ZAMM_HOOKED = "0x000000000000040470635EB91b7CE4D132D616eD";
 const V4_STATE_VIEW_ADDRESS = "0xA3c0c9b65baD0b08107Aa264b0f3dB444b867A71";
-const MAYBE_HOOK_ADDRESS = "0x2F9aC616fee58B948568799004F84dC9947fe0Cc";
+const MAYBE_HOOK_ADDRESS = "0x04f4CcA485013a5507C3c1bD7a6bEEb82B5C60Cc";
 const VRF_V2_PLUS_WRAPPER_ADDRESS =
   "0xb0407dbe851f8318bd31404A49e658143C982F23";
 const ETH_MAYBE_HOOKED_POOL_ID =
-  "0xb501106598ecda338f22cbba0a8d67d3a08c15f869a66249359887a9b8ab9d37";
+  "0xe92002159ae6c1a2189af7af2ac8f2f78660f0cc9de652876274b8fdb6b5ab28";
 const ZAMM_POOLS_ABI = [
   "function pools(uint256) view returns (uint112, uint112, uint32, uint256, uint256, uint256, uint256)",
 ];
@@ -64,6 +64,7 @@ const ONE_GWEI = 1000000000n;
 const ETH_MAYBE_POOL_FEE = 100n;
 const ETH_MAYBE_TICK_SPACING = 60n;
 let appWideMaxGasPrice = DEFAULT_GAS_PRICE; // will be set when we retrieve fee data and this updated value should be used when sending a tx
+let appWideEstimatedVrfFee = 0n;
 
 // ---- DOM helpers ----
 const $ = (id) => document.getElementById(id);
@@ -1673,10 +1674,10 @@ async function getPermitConfig(tokenAddress) {
   return await detectPermitConfig(tokenAddress);
 }
 
-async function signPermit(config, tokenAddress) {
+async function signPermit(config, tokenAddress, isMaybe) {
   const deadline = BigInt(Math.trunc(Date.now() / 1000) + 3600);
   const owner = connectedAddress;
-  const spender = ZROUTER_ADDRESS;
+  const spender = isMaybe ? MAYBE_HOOK_ADDRESS : MAYBE_ROUTER_ADDRESS;
 
   // Fetch nonce from token contract
   const nonceData = _permitIface.encodeFunctionData("nonces", [owner]);
@@ -1787,14 +1788,14 @@ async function checkPermit2Allowance(tokenAddress) {
   return a;
 }
 
-async function signPermit2(tokenAddress, amount) {
+async function signPermit2(tokenAddress, amount, isMaybe) {
   const deadline = BigInt(Math.trunc(Date.now() / 1000) + 3600);
   const _nonceBytes = new Uint8Array(8);
   crypto.getRandomValues(_nonceBytes);
   const nonce = _nonceBytes.reduce((n, b) => (n << 8n) | BigInt(b), 0n);
   const values = {
     permitted: { token: tokenAddress, amount },
-    spender: ZROUTER_ADDRESS,
+    spender: isMaybe ? MAYBE_HOOK_ADDRESS : MAYBE_ROUTER_ADDRESS,
     nonce,
     deadline,
   };
@@ -2012,8 +2013,11 @@ const ROUTER_IFACE = new ethers.Interface([
 ]);
 const MAYBE_ROUTER_IFACE = new ethers.Interface([
   "function maybeSwap(address,uint256,bytes,uint160,uint256,bool,uint160,bytes,address) payable",
-  // "event SwapBeforeMaybifying(uint256 indexed maybifyId, address indexed swapper, address inToken, uint256 inTokenAmount)",
-  "event SwapBeforeMaybifying(uint256 indexed maybifyId, address inToken, uint256 inTokenAmount)",
+  "event SwapBeforeMaybifying(uint256 indexed maybifyId, address indexed swapper, address inToken, uint256 inTokenAmount)",
+  "error InTokenCantBeMaybe()",
+  "error ZRouterCallToSwapInTokenToEthFailed(bytes reason)",
+  "error SwappingEthToMaybeHitPriceLimitAndDidNotConsumeEthFully(uint256 ethExpectedToSwap, uint256 actualyEthConsumed)",
+  "error OnlyPoolManagerCanTriggerCallback(address caller)",
 ]);
 const V4_STATE_VIEW_IFACE = new ethers.Interface([
   "function getSlot0(bytes32) external view returns (uint160, int24, uint24, uint24)",
@@ -2021,8 +2025,21 @@ const V4_STATE_VIEW_IFACE = new ethers.Interface([
 const MAYBE_HOOK_IFACE = new ethers.Interface([
   "function vrfCallbackGasLimit() external view returns (uint32)",
   "function protocolFeeInBps() external view returns (uint256)",
+  "function maybify(uint256 maybifyAmount,(uint256 probabilityInBps,address swapper,bool swapBackOnlyToEth,uint160 swapBackSqrtPriceLimitX96,bytes swapBackParams,address swapBackIntendedOutToken) maybifyParams) payable returns (uint256 maybifyId)",
   "event MaybifiedSwapRegistered(uint256 indexed id, address indexed swapper, uint256 probabilityInBps, uint256 burntAmount, uint256 timestamp, uint256 protocolFeeInBps, bool swapBackOnlyToEth, uint160 swapBackSqrtPriceLimitX96, bytes swapBackParams, address swapBackIntendedOutToken)",
   "event MaybifiedSwapResolved(uint256 indexed id, address indexed swapper, uint256 randomness, uint256 randomnessInBps, uint256 mintedAmount, uint256 timestamp, uint8 indexed swapBackState, bytes swapBackResultData)",
+  "error ProtocolFeeCantExceedHundredPercent(uint256 protocolFee)",
+  "error LPFeeShareCantExceedHundredPercent(uint256 lpFeeShare)",
+  "error PoolMustIncludeEthAndMaybe()",
+  "error HookDataOnlySupportedForSwappingFromMaybe()",
+  "error HookDataOnlySupportedForExactIn()",
+  "error EthExactInputForTheSwapIsLTEVrfFeeForMaybifying(uint256 ethExactIn, uint256 vrfFeeInEth)",
+  "error MaybifyingProbabilityCannotExceedMAX_PROBABILITY_IN_BPS(uint256 maybifyingProbability, uint256 maxProbability)",
+  "error CannotMaybifyForZeroTokens()",
+  "error MaybificationAlreadyInProgressForGivenId(uint256 id)",
+  "error VrfTimedOut(uint256 maybifiedAt, uint256 vrfTimeOutAt, uint256 currentTimestamp)",
+  "error VrfNotTimedOutYet(uint256 maybifiedAt, uint256 vrfTimeOutAt, uint256 currentTimestamp)",
+  "error NoMaybificationToResolveForGivenId(uint256 id)",
 ]);
 const VRF_V2_PLUS_WRAPPER_IFACE = new ethers.Interface([
   "function estimateRequestPriceNative(uint32, uint32, uint256) external view returns (uint256)",
@@ -2187,14 +2204,15 @@ async function handleAmountChange() {
   const isRocketRoute =
     quote.sourceA === "Rocket Pool" && !quote.isSplit && !quote.isTwoHop;
   const isStakeRoute = isLidoRoute || isRocketRoute;
-  const route = quote.isSplit
+  const routeToMaybe = quote.isSplit
     ? formatSplitRoute(quote.splitLegs)
     : quote.isTwoHop
       ? `${quote.sourceA} + ${quote.sourceB}`
       : isStakeRoute
         ? `${quote.sourceA} Stake`
         : `${quote.sourceA}`;
-  fitRouteText(route);
+  const routeFromMaybe = `${quote.sourceC}`;
+  fitRouteText(`${routeToMaybe} → ${routeFromMaybe}`);
   updateChartLink(quote);
   // Show "Direct stake" note for Lido/Rocket Pool routes
   const routeEl = $("routeInfo");
@@ -2232,10 +2250,11 @@ async function handleAmountChange() {
   displayPriceImpact(amtStr, fromSnap, toSnap, quote);
 
   // All routes
-  displayAllRoutes(quote, toSnap);
+  // displayAllRoutes(quote, toSnap);
 
   // Allowance check
   const fromData = tokens[fromSnap];
+  const isMaybe = fromData.address === tokens.MAYBE.address;
   const isDirectStake = false;
   const isRagequit = false;
   const isDirectPath = false;
@@ -2263,15 +2282,18 @@ async function handleAmountChange() {
     let allowance = cacheGetAllowance(
       fromData.address,
       connectedAddress,
-      ZROUTER_ADDRESS,
+      isMaybe ? MAYBE_HOOK_ADDRESS : MAYBE_ROUTER_ADDRESS,
     );
     if (allowance == null) {
       const r = erc20Read(fromData.address);
-      allowance = await r.allowance(connectedAddress, ZROUTER_ADDRESS);
+      allowance = await r.allowance(
+        connectedAddress,
+        isMaybe ? MAYBE_HOOK_ADDRESS : MAYBE_ROUTER_ADDRESS,
+      );
       cacheSetAllowance(
         fromData.address,
         connectedAddress,
-        ZROUTER_ADDRESS,
+        isMaybe ? MAYBE_HOOK_ADDRESS : MAYBE_ROUTER_ADDRESS,
         allowance,
       );
     }
@@ -2408,6 +2430,38 @@ function initSimpleSlippage() {
 document.addEventListener("DOMContentLoaded", initSimpleSlippage);
 
 // ---- Probability slider ----
+function _updateSliderTrack() {
+  const sliderEl = $("slider");
+  if (!sliderEl) return;
+  const min = 5,
+    max = 95;
+  const val = parseInt(sliderEl.value, 10) || 50;
+  const pct = ((val - min) / (max - min)) * 100;
+  // sliderEl.style.background = `linear-gradient(to right, #4a7a62 ${pct}%, #7a4a4a ${pct}%)`;
+  sliderEl.style.background = `linear-gradient(to right,  #3d9e6e ${pct}%, #b04040 ${pct}%)`;
+}
+
+function showSliderResult(randomnessInBps, won) {
+  const marker = $("sliderResultMarker");
+  const needle = $("sliderResultNeedle");
+  const label = $("sliderResultLabel");
+  if (!marker || !needle || !label) return;
+  const pct = (Number(randomnessInBps) / 10000) * 100;
+  marker.style.left = `${pct}%`;
+  marker.style.display = "block";
+  // const color = won ? "#4a7a62" : "#7a4a4a";
+  const color = won ? "#3d9e6e" : "#b04040";
+  needle.style.background = color;
+  needle.style.boxShadow = `0 0 8px ${color}`;
+  label.textContent = `${pct.toFixed(1)}%`;
+  label.style.color = color;
+}
+
+function clearSliderResult() {
+  const marker = $("sliderResultMarker");
+  if (marker) marker.style.display = "none";
+}
+
 function readProbability(rawVal, finalize = false) {
   const sliderEl = $("slider");
   const numEl = $("sliderValue");
@@ -2417,6 +2471,7 @@ function readProbability(rawVal, finalize = false) {
   probabilityBps = v * 100;
   if (sliderEl) sliderEl.value = v;
   if (finalize && numEl) numEl.value = v;
+  _updateSliderTrack();
   return probabilityBps;
 }
 
@@ -2715,8 +2770,8 @@ async function getQuote(fromAmountStr, fromSym, toSym) {
     const vrfV2PlusWrapper = getVRFV2PlusWrapperContract(rpc);
     const quoterBase = getQuoterBaseContract(rpc);
 
-    // @TODO: We gotta manually handle fromData is either for ETH or MAYBE as they are not just token X. We gotta manually handle them
-    // First of all, if its ETH, we can just skip the initial quoting and assume that multicall value is just 0x and msg.value is
+    // We gotta manually handle fromData is either for ETH or MAYBE as they are not just token X. We gotta manually handle them
+    // First of all, if its ETH or MAYBE, we can just skip the initial quoting and assume that multicall value is just 0x and msg.value is
     const omitSwapAmountForBuildingCalldata = true;
     const allCalls = [
       stateViewer.getSlot0(ETH_MAYBE_HOOKED_POOL_ID),
@@ -2727,8 +2782,13 @@ async function getQuote(fromAmountStr, fromSym, toSym) {
         DEFAULT_GAS_PRICE, // we currently do not know the gas price, yet to estimate the vrf's eth fee we need that. So, we would first fetch the gas price then fetch it again. Yet, since gas price has linear effect on the fee, what we can do is, get the vrf fee using some gas price and then we can update the estimated fee with fetched gas price. This allows us to do the estimation with a single rpc call time rather than consequent two requests
       ),
     ];
-    // if input token is not ETH, we should quote to get ETH for it
-    if (fromData.address !== tokens.ETH.address) {
+    // if input token is not ETH or MAYBE, we should quote to get ETH for it
+    if (
+      !(
+        fromData.address === tokens.ETH.address ||
+        fromData.address === tokens.MAYBE.address
+      )
+    ) {
       allCalls.push(
         ...[
           quoter.buildBestSwapViaETHMulticall(
@@ -2842,29 +2902,33 @@ async function getQuote(fromAmountStr, fromSym, toSym) {
       "adjusted vrf fee estimate for max gas price is: ",
       adjustedVrfFeeEstimate,
     );
-    // slot0 is required // @TODO: Maybe not? how about we use min and max ticks?
-    if (slot0Result.status === "rejected") throw slot0Result.reason;
-    const currentTick = slot0Result.value[1];
-    console.log("current tick: ", currentTick);
-    // Work on calculating sqrt price limit for swapping from ETH to MAYBE
+    appWideEstimatedVrfFee = adjustedVrfFeeEstimate;
     let sqrtPriceLimitForSlippageForSwappingFromEthToMaybe =
       MIN_SQRT_PRICE_LIMIT_PLUS_ONE;
-    const zeroForOneForSwappingFromEthToMaybe = true;
-    sqrtPriceLimitForSlippageForSwappingFromEthToMaybe = getSqrtPriceLimit(
-      zeroForOneForSwappingFromEthToMaybe,
-      slippageBps,
-      currentTick,
-    );
-    // Work on calculating sqrt price limit for swapping from MAYBE to ETH
     let sqrtPriceLimitForSlippageForSwappingFromMaybeToEth =
       MAX_SQRT_PRICE_LIMIT_MINUS_ONE;
-    const zeroForOneForSwappingFromMaybeToEth =
-      !zeroForOneForSwappingFromEthToMaybe;
-    sqrtPriceLimitForSlippageForSwappingFromMaybeToEth = getSqrtPriceLimit(
-      zeroForOneForSwappingFromMaybeToEth,
-      slippageBps,
-      currentTick,
-    );
+    if (fromData.address !== tokens.MAYBE.address) {
+      // slot0 is required
+      if (slot0Result.status === "rejected") throw slot0Result.reason;
+      const currentTick = slot0Result.value[1];
+      console.log("current tick: ", currentTick);
+      // Work on calculating sqrt price limit for swapping from ETH to MAYBE
+      const zeroForOneForSwappingFromEthToMaybe = true;
+      sqrtPriceLimitForSlippageForSwappingFromEthToMaybe = getSqrtPriceLimit(
+        zeroForOneForSwappingFromEthToMaybe,
+        slippageBps,
+        currentTick,
+      );
+      // Work on calculating sqrt price limit for swapping from MAYBE to ETH
+      const zeroForOneForSwappingFromMaybeToEth =
+        !zeroForOneForSwappingFromEthToMaybe;
+      sqrtPriceLimitForSlippageForSwappingFromMaybeToEth = getSqrtPriceLimit(
+        zeroForOneForSwappingFromMaybeToEth,
+        slippageBps,
+        currentTick,
+      );
+    }
+
     console.log("calculated sqrt price limits");
     let result = {
       expectedOutput: amountIn,
@@ -2876,12 +2940,18 @@ async function getQuote(fromAmountStr, fromSym, toSym) {
       splitLegs: null,
       sourceA: "Unknown",
       sourceB: null,
+      sourceC: "Unknown",
       allQuotes: null,
     };
 
     console.log("fromData.address: ", fromData.address);
     console.log("tokens.ETH.address: ", tokens.ETH.address);
-    if (fromData.address !== tokens.ETH.address) {
+    if (
+      !(
+        fromData.address === tokens.ETH.address ||
+        fromData.address === tokens.MAYBE.address
+      )
+    ) {
       console.log("trying to pick the best result");
       // bestResult is required
       if (bestResult.status === "rejected") throw bestResult.reason;
@@ -2900,6 +2970,7 @@ async function getQuote(fromAmountStr, fromSym, toSym) {
         splitLegs: null,
         sourceA: AMM_NAMES[r.a.source] || "Unknown",
         sourceB: isTwoHop ? AMM_NAMES[r.b.source] || "Unknown" : null,
+        sourceC: null,
         allQuotes: null,
       };
 
@@ -3014,49 +3085,55 @@ async function getQuote(fromAmountStr, fromSym, toSym) {
         }
       }
     }
-    console.log("found the best first swap");
 
-    const expectedEthTokenOutput = result.expectedOutput;
-    console.log("expected eth token output: ", expectedEthTokenOutput);
-    const minEthTokenOutputAfterSlippage =
-      fromData.address === tokens.ETH.address
-        ? expectedEthTokenOutput
-        : (expectedEthTokenOutput * (10000n - BigInt(slippageBps))) / 10000n;
-    console.log(
-      "min eth token output because of slippage: ",
-      minEthTokenOutputAfterSlippage,
-    );
-    const expectedVrfFeeInEth = adjustedVrfFeeEstimate;
-    console.log("expected vrf fee in eth: ", expectedVrfFeeInEth);
-    // const minEthAmountAfterVrfFee =
-    //   minEthTokenOutputAfterSlippage - expectedVrfFeeInEth;
-    const minEthAmountAfterVrfFee =
-      expectedEthTokenOutput - expectedVrfFeeInEth;
-    console.log(
-      "expected min eth token output because of slippage and vrf fee: ",
-      minEthAmountAfterVrfFee,
-    );
-    if (minEthAmountAfterVrfFee < 0n) {
-      throw Error("Swap is not even worth to pay for VRF fee");
+    let expectedMaybeAmountOut = amountIn;
+    if (fromData.address !== tokens.MAYBE.address) {
+      console.log("found the best first swap");
+
+      const expectedEthTokenOutput = result.expectedOutput;
+      console.log("expected eth token output: ", expectedEthTokenOutput);
+      const minEthTokenOutputAfterSlippage =
+        fromData.address === tokens.ETH.address
+          ? expectedEthTokenOutput
+          : (expectedEthTokenOutput * (10000n - BigInt(slippageBps))) / 10000n;
+      console.log(
+        "min eth token output because of slippage: ",
+        minEthTokenOutputAfterSlippage,
+      );
+      const expectedVrfFeeInEth = adjustedVrfFeeEstimate;
+      console.log("expected vrf fee in eth: ", expectedVrfFeeInEth);
+      // const minEthAmountAfterVrfFee =
+      //   minEthTokenOutputAfterSlippage - expectedVrfFeeInEth;
+      const minEthAmountAfterVrfFee =
+        expectedEthTokenOutput - expectedVrfFeeInEth;
+      console.log(
+        "expected min eth token output because of slippage and vrf fee: ",
+        minEthAmountAfterVrfFee,
+      );
+      if (minEthAmountAfterVrfFee < 0n) {
+        throw Error("Swap is not even worth to pay for VRF fee");
+      }
+      // @TODO: We could add extra errors like if this VRF fee amount is more than 1% of the swap maybe user should know? Well at least not for now
+      // @TODO: Using MaybeZQuoterBase use quoteV4 and swap minEthAmountAfterVrfFee amount of ETH for MAYBE
+      const ethToMaybeV4Quote = await quoterBase.quoteV4(
+        false,
+        tokens.ETH.address,
+        tokens.MAYBE.address,
+        ETH_MAYBE_POOL_FEE,
+        ETH_MAYBE_TICK_SPACING,
+        MAYBE_HOOK_ADDRESS,
+        minEthAmountAfterVrfFee,
+      );
+      console.log("ethToMaybeV4Quote: ", ethToMaybeV4Quote);
+      let spentEth;
+      [spentEth, expectedMaybeAmountOut] = ethToMaybeV4Quote;
+      console.log("spent eth for maybe swap: ", spentEth);
+      console.log(
+        "expected received maybe from eth swap: ",
+        expectedMaybeAmountOut,
+      );
     }
-    // @TODO: We could add extra errors like if this VRF fee amount is more than 1% of the swap maybe user should know? Well at least not for now
-    // @TODO: Using MaybeZQuoterBase use quoteV4 and swap minEthAmountAfterVrfFee amount of ETH for MAYBE
-    const ethToMaybeV4Quote = await quoterBase.quoteV4(
-      false,
-      tokens.ETH.address,
-      tokens.MAYBE.address,
-      ETH_MAYBE_POOL_FEE,
-      ETH_MAYBE_TICK_SPACING,
-      MAYBE_HOOK_ADDRESS,
-      minEthAmountAfterVrfFee,
-    );
-    console.log("ethToMaybeV4Quote: ", ethToMaybeV4Quote);
-    const [spentEth, expectedMaybeAmountOut] = ethToMaybeV4Quote;
-    console.log("spent eth for maybe swap: ", spentEth);
-    console.log(
-      "expected received maybe from eth swap: ",
-      expectedMaybeAmountOut,
-    );
+
     const minMaybeAmountOut = expectedMaybeAmountOut;
     // const minMaybeAmountOut =
     //   (expectedMaybeAmountOut * (10000n - BigInt(slippageBps))) / 10000n;
@@ -3226,6 +3303,10 @@ async function getQuote(fromAmountStr, fromSym, toSym) {
             swapBackResult.sourceB = AMM_NAMES[h3.c.source] || "?";
           }
         }
+        // Add routing info related to swapping back
+        result.sourceC =
+          swapBackResult.sourceA +
+          (swapBackResult.isTwoHop ? swapBackResult.sourceB : "");
       }
       console.log("swapBackResult: ", swapBackResult);
       swapBackParams = swapBackResult.multicall;
@@ -3237,22 +3318,43 @@ async function getQuote(fromAmountStr, fromSym, toSym) {
     console.log("amountIn: ", amountIn);
     console.log("result.msgValue: ", result.msgValue);
     console.log("result.multicall: ", result.multicall);
-    const maybeRouterCall = MAYBE_ROUTER_IFACE.encodeFunctionData("maybeSwap", [
-      fromData.address,
-      amountIn,
-      result.multicall,
-      // sqrtPriceLimitForSlippageForSwappingFromEthToMaybe, // @TODO: Problem is, if we hit the price limit before consuming all the ETH, there will be unspent ETH
-      MIN_SQRT_PRICE_LIMIT_PLUS_ONE,
-      maybifyingProbabilityInBps, // @TODO: Work on the slider input for maybifying probability
-      swapBackOnlyToEth, // (swapBackOnlyToEth) should be set to true only if output token is ETH
-      // sqrtPriceLimitForSlippageForSwappingFromMaybeToEth, // @TODO: Problem is, if we hit the price limit before consuming all the ETH, there will be unspent ETH
-      MAX_SQRT_PRICE_LIMIT_MINUS_ONE,
-      swapBackParams,
-      toData.address,
-      // "0x", // (swapBackParams) should be set to zero bytes (0x) only if output token is MAYBE and in that case swapBackOnlyToEth should be false as well
-    ]);
-    console.log("MaybeRouter encoded call data: ", maybeRouterCall);
-    result.multicall = maybeRouterCall;
+
+    // If input token is MAYBE, we will directly call MaybeHook's maybify func rather than calling maybeRouter
+    if (fromData.address === tokens.MAYBE.address) {
+      const maybeHookCall = MAYBE_HOOK_IFACE.encodeFunctionData("maybify", [
+        amountIn,
+        [
+          maybifyingProbabilityInBps,
+          receiver,
+          swapBackOnlyToEth,
+          MAX_SQRT_PRICE_LIMIT_MINUS_ONE,
+          swapBackParams,
+          toData.address,
+        ],
+      ]);
+      result.multicall = maybeHookCall;
+    } else {
+      // If input token is not MAYBE, we will call MaybeRouter's maybeSwap func
+      const maybeRouterCall = MAYBE_ROUTER_IFACE.encodeFunctionData(
+        "maybeSwap",
+        [
+          fromData.address,
+          amountIn,
+          result.multicall,
+          sqrtPriceLimitForSlippageForSwappingFromEthToMaybe,
+          // MIN_SQRT_PRICE_LIMIT_PLUS_ONE,
+          maybifyingProbabilityInBps,
+          swapBackOnlyToEth, // (swapBackOnlyToEth) should be set to true only if output token is ETH
+          sqrtPriceLimitForSlippageForSwappingFromMaybeToEth,
+          // MAX_SQRT_PRICE_LIMIT_MINUS_ONE,
+          swapBackParams,
+          toData.address,
+          // "0x", // (swapBackParams) should be set to zero bytes (0x) only if output token is MAYBE and in that case swapBackOnlyToEth should be false as well
+        ],
+      );
+      console.log("MaybeRouter encoded call data: ", maybeRouterCall);
+      result.multicall = maybeRouterCall;
+    }
     result.expectedOutput = expectedOutput;
 
     return result;
@@ -3531,9 +3633,47 @@ function requestQuote(amtStr, fromSnap, toSnap) {
 // ---- Swap execution ----
 let _swapBusy = false;
 
+function decodeSwapError(e) {
+  const data = e?.data ?? e?.info?.error?.data ?? e?.error?.data;
+  if (!data || data === "0x") return null;
+  for (const iface of [MAYBE_ROUTER_IFACE, MAYBE_HOOK_IFACE]) {
+    try {
+      const decoded = iface.parseError(data);
+      if (decoded) return decoded;
+    } catch {}
+  }
+  return null;
+}
+
+function friendlySwapError(decoded) {
+  switch (decoded.name) {
+    case "SwappingEthToMaybeHitPriceLimitAndDidNotConsumeEthFully":
+      return "Price impact too high — increase slippage and try again";
+    case "EthExactInputForTheSwapIsLTEVrfFeeForMaybifying":
+      return "Amount too small to cover the VRF fee";
+    case "MaybifyingProbabilityCannotExceedMAX_PROBABILITY_IN_BPS":
+      return "Maybify probability exceeds 100%";
+    case "CannotMaybifyForZeroTokens":
+      return "Cannot maybify zero tokens";
+    case "MaybificationAlreadyInProgressForGivenId":
+      return "A maybification is already in progress for this swap";
+    case "InTokenCantBeMaybe":
+      return "Input token cannot be MAYBE";
+    case "ZRouterCallToSwapInTokenToEthFailed":
+      return "Swap to ETH failed — try a different route";
+    case "HookDataOnlySupportedForSwappingFromMaybe":
+      return "Maybify hookData is only valid when swapping ETH → MAYBE";
+    case "HookDataOnlySupportedForExactIn":
+      return "Maybify only supports exact-input swaps";
+    default:
+      return null;
+  }
+}
+
 async function executeSwap() {
   if (_swapBusy) return;
   _swapBusy = true;
+  clearSliderResult();
   stopQuoteRefresh();
 
   const swapBtn = $("swapBtn");
@@ -3633,6 +3773,7 @@ async function executeSwap() {
     );
     const quote = await withRetry(() => getQuote(amtStr, fromSnap, toSnap));
     const fromData = tokens[fromSnap];
+    const isMaybe = fromData.address === tokens.MAYBE.address;
     const amountIn = safeParseUnits(amtStr, fromData.decimals);
 
     let txData = quote.multicall;
@@ -3640,85 +3781,97 @@ async function executeSwap() {
     console.log("from token inside execute swap: ", fromSnap);
     console.log("amount in inside execute swap: ", amountIn);
     console.log("txData inside execute swap: ", txData);
+    console.log("isMaybe: ", isMaybe);
 
     // ERC20 approval
     if (fromData.address !== ZERO_ADDRESS) {
       const r = erc20Read(fromData.address);
       swapBtn.textContent = "Checking allowance...";
-      let allowance = await r.allowance(connectedAddress, MAYBE_ROUTER_ADDRESS);
+      let allowance = await r.allowance(
+        connectedAddress,
+        isMaybe ? MAYBE_HOOK_ADDRESS : MAYBE_ROUTER_ADDRESS,
+      );
       cacheSetAllowance(
         fromData.address,
         connectedAddress,
-        MAYBE_ROUTER_ADDRESS,
+        isMaybe ? MAYBE_HOOK_ADDRESS : MAYBE_ROUTER_ADDRESS,
         allowance,
       );
 
       if (allowance < amountIn) {
         let approved = false;
 
-        // --- Try 1: EIP-2612 Permit (single tx) ---
-        const permitCfg = await getPermitConfig(fromData.address);
-        if (permitCfg) {
-          try {
-            swapBtn.textContent = "Sign permit...";
-            const permitData = await signPermit(permitCfg, fromData.address);
-            const innerCalls =
-              quote.calls || decodeMulticallCalls(quote.multicall);
-            const permitTxData = buildPermitMulticall(innerCalls, permitData);
-            // Pre-flight: catch on-chain permit failures (e.g. InvalidShortString)
-            await provider.estimateGas({
-              from: connectedAddress,
-              to: MAYBE_ROUTER_ADDRESS,
-              data: permitTxData,
-              value: quote.msgValue ?? 0n,
-            });
-            txData = permitTxData;
-            approved = true;
-          } catch (permitErr) {
-            const msg = String(permitErr?.message || "");
-            if (/user rejected|user denied|user cancelled/i.test(msg))
-              throw permitErr;
-            console.warn("Permit failed, falling back:", permitErr);
-            _permitCache.set(fromData.address.toLowerCase(), null);
-            txData = quote.multicall;
-          }
-        }
+        // // --- Try 1: EIP-2612 Permit (single tx) ---
+        // const permitCfg = await getPermitConfig(fromData.address);
+        // if (permitCfg) {
+        //   try {
+        //     swapBtn.textContent = "Sign permit...";
+        //     const permitData = await signPermit(
+        //       permitCfg,
+        //       fromData.address,
+        //       isMaybe,
+        //     );
+        //     const innerCalls =
+        //       quote.calls || decodeMulticallCalls(quote.multicall);
+        //     const permitTxData = buildPermitMulticall(innerCalls, permitData);
+        //     // Pre-flight: catch on-chain permit failures (e.g. InvalidShortString)
+        //     await provider.estimateGas({
+        //       from: connectedAddress,
+        //       to: isMaybe ? MAYBE_HOOK_ADDRESS : MAYBE_ROUTER_ADDRESS,
+        //       data: permitTxData,
+        //       value: quote.msgValue ?? 0n,
+        //     });
+        //     txData = permitTxData;
+        //     approved = true;
+        //   } catch (permitErr) {
+        //     const msg = String(permitErr?.message || "");
+        //     if (/user rejected|user denied|user cancelled/i.test(msg))
+        //       throw permitErr;
+        //     console.warn("Permit failed, falling back:", permitErr);
+        //     _permitCache.set(fromData.address.toLowerCase(), null);
+        //     txData = quote.multicall;
+        //   }
+        // }
 
-        // --- Try 2: Permit2 (single tx, sign-only) ---
-        if (!approved) {
-          let p2Allowance = cacheGetAllowance(
-            fromData.address,
-            connectedAddress,
-            PERMIT2_ADDRESS,
-          );
-          if (p2Allowance == null) {
-            swapBtn.textContent = "Checking Permit2...";
-            const r2 = erc20Read(fromData.address);
-            p2Allowance = await r2.allowance(connectedAddress, PERMIT2_ADDRESS);
-            cacheSetAllowance(
-              fromData.address,
-              connectedAddress,
-              PERMIT2_ADDRESS,
-              p2Allowance,
-            );
-          }
-          if (p2Allowance >= amountIn) {
-            try {
-              swapBtn.textContent = "Sign Permit2...";
-              const permit2Data = await signPermit2(fromData.address, amountIn);
-              const innerCalls =
-                quote.calls || decodeMulticallCalls(quote.multicall);
-              txData = buildPermit2Multicall(innerCalls, permit2Data);
-              approved = true;
-            } catch (p2Err) {
-              const msg = String(p2Err?.message || "");
-              if (/user rejected|user denied|user cancelled/i.test(msg))
-                throw p2Err;
-              console.warn("Permit2 failed, falling back:", p2Err);
-              txData = quote.multicall;
-            }
-          }
-        }
+        // // --- Try 2: Permit2 (single tx, sign-only) ---
+        // if (!approved) {
+        //   let p2Allowance = cacheGetAllowance(
+        //     fromData.address,
+        //     connectedAddress,
+        //     PERMIT2_ADDRESS,
+        //   );
+        //   if (p2Allowance == null) {
+        //     swapBtn.textContent = "Checking Permit2...";
+        //     const r2 = erc20Read(fromData.address);
+        //     p2Allowance = await r2.allowance(connectedAddress, PERMIT2_ADDRESS);
+        //     cacheSetAllowance(
+        //       fromData.address,
+        //       connectedAddress,
+        //       PERMIT2_ADDRESS,
+        //       p2Allowance,
+        //     );
+        //   }
+        //   if (p2Allowance >= amountIn) {
+        //     try {
+        //       swapBtn.textContent = "Sign Permit2...";
+        //       const permit2Data = await signPermit2(
+        //         fromData.address,
+        //         amountIn,
+        //         isMaybe,
+        //       );
+        //       const innerCalls =
+        //         quote.calls || decodeMulticallCalls(quote.multicall);
+        //       txData = buildPermit2Multicall(innerCalls, permit2Data);
+        //       approved = true;
+        //     } catch (p2Err) {
+        //       const msg = String(p2Err?.message || "");
+        //       if (/user rejected|user denied|user cancelled/i.test(msg))
+        //         throw p2Err;
+        //       console.warn("Permit2 failed, falling back:", p2Err);
+        //       txData = quote.multicall;
+        //     }
+        //   }
+        // }
 
         // --- Try 3: Approve (two tx, traditional fallback) ---
         if (!approved) {
@@ -3732,7 +3885,10 @@ async function executeSwap() {
           // Reset to zero first if there's a stale non-zero allowance
           if (allowance > 0n) {
             const resetTx = await wcTransaction(
-              erc20W.approve(MAYBE_ROUTER_ADDRESS, 0),
+              erc20W.approve(
+                isMaybe ? MAYBE_HOOK_ADDRESS : MAYBE_ROUTER_ADDRESS,
+                0,
+              ),
               "Reset allowance in your wallet",
             );
             swapBtn.textContent = "Resetting allowance...";
@@ -3740,7 +3896,10 @@ async function executeSwap() {
             if (resetRc.status === 0) throw new Error("Allowance reset failed");
           }
           const approveTx = await wcTransaction(
-            erc20W.approve(MAYBE_ROUTER_ADDRESS, ethers.MaxUint256),
+            erc20W.approve(
+              isMaybe ? MAYBE_HOOK_ADDRESS : MAYBE_ROUTER_ADDRESS,
+              ethers.MaxUint256,
+            ),
             "Approve token spending in your wallet",
           );
           swapBtn.innerHTML = `Approving... <a href="https://etherscan.io/tx/${escAttr(approveTx.hash)}" target="_blank" style="color:var(--btn-fg);text-decoration:underline;font-weight:400">view tx &#8599;</a>`;
@@ -3752,7 +3911,7 @@ async function executeSwap() {
           cacheSetAllowance(
             fromData.address,
             connectedAddress,
-            MAYBE_ROUTER_ADDRESS,
+            isMaybe ? MAYBE_HOOK_ADDRESS : MAYBE_ROUTER_ADDRESS,
             ethers.MaxUint256,
           );
         }
@@ -3764,12 +3923,19 @@ async function executeSwap() {
     const txValue = quote.msgValue ?? 0n;
 
     const swapTx = await wcTransaction(
-      signer.sendTransaction({
-        to: MAYBE_ROUTER_ADDRESS,
-        data: txData,
-        value: fromData.address === tokens.ETH.address ? amountIn : 0n,
-        maxFeePerGas: appWideMaxGasPrice,
-      }),
+      isMaybe
+        ? signer.sendTransaction({
+            to: MAYBE_HOOK_ADDRESS,
+            data: txData,
+            value: (appWideEstimatedVrfFee * 12n) / 10n, // We are adding 20% buffer to VRF fee in case vrf fee changes. There is no downside as if we send excessive ETH, it will be sent back to the user
+            maxFeePerGas: appWideMaxGasPrice,
+          })
+        : signer.sendTransaction({
+            to: MAYBE_ROUTER_ADDRESS,
+            data: txData,
+            value: fromData.address === tokens.ETH.address ? amountIn : 0n,
+            maxFeePerGas: appWideMaxGasPrice,
+          }),
       "Confirm swap in your wallet",
     );
     swapBtn.innerHTML = `Confirming ${actionLabel.toLowerCase()}... <a href="https://etherscan.io/tx/${escAttr(swapTx.hash)}" target="_blank" style="color:var(--btn-fg);text-decoration:underline;font-weight:400">view tx &#8599;</a>`;
@@ -3779,7 +3945,15 @@ async function executeSwap() {
 
     // Handle maybify swap UX (lock card for VRF wait, or show inline result)
     const maybifyResult = connectedAddress
-      ? await handleMaybifyReceipt(receipt, connectedAddress)
+      ? await handleMaybifyReceipt(
+          receipt,
+          connectedAddress,
+          {
+            expectedOutAmount: String(quote.expectedOutput),
+            toTokenKey: toSnap,
+          },
+          isMaybe,
+        )
       : null;
 
     if (maybifyResult?.type === "pending") {
@@ -3799,9 +3973,7 @@ async function executeSwap() {
       }, 3000);
     } else {
       // Normal (non-maybify) swap — reset immediately
-      swapBtn.textContent =
-        (isLidoExec ? "Stake" : isZOrgSwap(toSnap) ? "Swap & Stake" : "Swap") +
-        " Complete!";
+      swapBtn.textContent = "Swap" + " Complete!";
       $("fromAmount").value = "";
       $("toAmount").value = "";
       $("quoteInfo").style.display = "none";
@@ -3820,6 +3992,13 @@ async function executeSwap() {
       msg = "Transaction cancelled";
     else if (/insufficient funds/i.test(s)) msg = "Insufficient balance";
     else if (/Too many decimals|Invalid number/i.test(s)) msg = s;
+    else {
+      const decoded = decodeSwapError(e);
+      if (decoded) {
+        console.error("Decoded contract error:", decoded.name, decoded.args);
+        msg = friendlySwapError(decoded) ?? decoded.name;
+      }
+    }
 
     swapBtn.textContent = msg;
     setTimeout(() => {
@@ -4167,10 +4346,8 @@ function _lockSwapCardForMaybify(maybifyId, swapCtx) {
       )?.symbol || null
     : null;
   // @TODO: Add the ability of notification where we see the seconds passed
-  const parts = ["⏳ Waiting for VRF", pct, outSym && "→ " + outSym].filter(
-    Boolean,
-  );
-  swapBtn.textContent = parts.join(" · ");
+  setHTML(swapBtn, `<span class="loading"></span> Waiting for VRF`);
+
   swapBtn.disabled = true;
 }
 
@@ -4190,6 +4367,7 @@ function _resolveSwapCardMaybify(maybifyId, won, desc) {
     if (toEl) toEl.value = "";
     const qEl = $("quoteInfo");
     if (qEl) qEl.style.display = "none";
+    clearSliderResult();
     handleAmountChange();
     updateBalances();
   }, 5_000);
@@ -4277,7 +4455,15 @@ function confirmDismissMaybifyNotif(maybifyId) {
   }
 }
 
-function showMaybifyNotif(maybifyId, status, desc, txLink, swapCtx, timestamp) {
+function showMaybifyNotif(
+  maybifyId,
+  status,
+  desc,
+  txLink,
+  swapCtx,
+  timestamp,
+  txHashes,
+) {
   const id = `mn-${maybifyId}`;
   const container = $("maybifyNotifContainer");
   if (!container) return;
@@ -4332,6 +4518,48 @@ function showMaybifyNotif(maybifyId, status, desc, txLink, swapCtx, timestamp) {
     if (prevAutoId != null) clearTimeout(prevAutoId);
     const autoId = setTimeout(() => dismissMaybifyNotif(maybifyId), 30_000);
     _maybifyAutoDismiss.set(String(maybifyId), autoId);
+
+    // Gamification side-effects
+    const won = status === "won";
+    let inDisplay = "";
+    try {
+      if (swapCtx?.inToken && swapCtx?.inTokenAmount)
+        inDisplay = _fmtTokenByAddr(
+          swapCtx.inToken,
+          BigInt(swapCtx.inTokenAmount),
+        );
+    } catch {}
+    const outDisplay = won
+      ? desc.startsWith("Received ")
+        ? desc.slice(9)
+        : desc
+      : swapCtx?.expectedOutDisplay || "?";
+    _saveSwapToHistory({
+      maybifyId: String(maybifyId),
+      timestamp: timestamp || Date.now(),
+      inDisplay,
+      outDisplay,
+      probabilityPct:
+        swapCtx?.probabilityInBps != null
+          ? Math.round(Number(swapCtx.probabilityInBps) / 100)
+          : null,
+      won,
+      registerTxHash: txHashes?.registerTxHash || null,
+      resolveTxHash: txHashes?.resolveTxHash || null,
+    });
+    _updateStats();
+    _renderHistoryPanel();
+    if (won) {
+      const prob =
+        swapCtx?.probabilityInBps != null
+          ? Number(swapCtx.probabilityInBps) / 10000
+          : 0.5;
+      const intensity = Math.min(3, Math.max(0.5, 0.5 / Math.max(prob, 0.01)));
+      _fireConfetti(intensity);
+      _playWinSound();
+    } else {
+      _playLoseSound();
+    }
   }
 }
 
@@ -4435,7 +4663,11 @@ async function _pollMaybifyResolved(maybifyId, swapper, fromBlock) {
         topics: [resolvedTopic, idPadded, swapperPadded],
       }),
     );
-    if (logs.length > 0) return MAYBE_HOOK_IFACE.parseLog(logs[0]);
+    if (logs.length > 0)
+      return {
+        parsed: MAYBE_HOOK_IFACE.parseLog(logs[0]),
+        resolveTxHash: logs[0].transactionHash,
+      };
   } catch (e) {
     console.warn("Maybify poll error:", e);
   }
@@ -4448,12 +4680,14 @@ function _startMaybifyPolling(
   fromBlock,
   swapCtx,
   timestamp,
+  registerTxHash,
 ) {
   const key = String(maybifyId);
   if (_maybifyPolls.has(key)) return;
   const timerId = setInterval(async () => {
-    const parsed = await _pollMaybifyResolved(maybifyId, swapper, fromBlock);
-    if (!parsed) return;
+    const result = await _pollMaybifyResolved(maybifyId, swapper, fromBlock);
+    if (!result) return;
+    const { parsed, resolveTxHash } = result;
     clearInterval(timerId);
     _maybifyPolls.delete(key);
     _removeMaybifyPending(key);
@@ -4462,6 +4696,7 @@ function _startMaybifyPolling(
       parsed.args.swapBackResultData,
       swapCtx,
     );
+    showSliderResult(parsed.args.randomnessInBps, won);
     showMaybifyNotif(
       maybifyId,
       won ? "won" : "lost",
@@ -4469,13 +4704,14 @@ function _startMaybifyPolling(
       undefined,
       swapCtx,
       timestamp,
+      { registerTxHash, resolveTxHash },
     );
     _resolveSwapCardMaybify(maybifyId, won, desc);
   }, 1_000);
   _maybifyPolls.set(key, timerId);
 }
 
-async function handleMaybifyReceipt(receipt, swapper) {
+async function handleMaybifyReceipt(receipt, swapper, quoteHint, isMaybe) {
   // Extract maybifyId and swap context from SwapBeforeMaybifying on MaybeRouter
   let maybifyId = null;
   let inToken = null;
@@ -4515,22 +4751,29 @@ async function handleMaybifyReceipt(receipt, swapper) {
     "inTokenAmount:",
     inTokenAmount,
   );
-  if (maybifyId == null) return null; // not a maybify swap
+  if (maybifyId == null && !isMaybe) return null; // not a maybify swap
+  console.log("passed condition");
 
   // Gather MaybifiedSwapRegistered for probability/out-token info
   let probabilityInBps = null;
   let swapBackIntendedOutToken = null;
   for (const log of receipt.logs) {
+    console.log("checking logs if there is anything for MaybeHook");
     if (log.address.toLowerCase() !== MAYBE_HOOK_ADDRESS.toLowerCase())
       continue;
     try {
       const parsed = MAYBE_HOOK_IFACE.parseLog(log);
       if (
         parsed?.name === "MaybifiedSwapRegistered" &&
-        String(parsed.args.id) === String(maybifyId)
+        (isMaybe ? true : String(parsed.args.id) === String(maybifyId))
       ) {
         probabilityInBps = parsed.args.probabilityInBps;
         swapBackIntendedOutToken = parsed.args.swapBackIntendedOutToken;
+        if (isMaybe) {
+          maybifyId = parsed.args.id;
+          inToken = tokens.MAYBE.address;
+          inTokenAmount = parsed.args.burntAmount;
+        }
         break;
       }
     } catch (e) {
@@ -4544,6 +4787,22 @@ async function handleMaybifyReceipt(receipt, swapper) {
     swapBackIntendedOutToken,
   );
 
+  let expectedOutDisplay = null;
+  if (quoteHint?.expectedOutAmount && quoteHint?.toTokenKey) {
+    try {
+      const toData = tokens[quoteHint.toTokenKey];
+      expectedOutDisplay =
+        fmt(
+          ethers.formatUnits(
+            BigInt(quoteHint.expectedOutAmount),
+            toData?.decimals ?? 18,
+          ),
+        ) +
+        " " +
+        (toData?.symbol || "?");
+    } catch {}
+  }
+
   const swapCtx =
     inToken != null
       ? {
@@ -4552,6 +4811,7 @@ async function handleMaybifyReceipt(receipt, swapper) {
           probabilityInBps:
             probabilityInBps != null ? String(probabilityInBps) : null,
           swapBackIntendedOutToken: swapBackIntendedOutToken ?? null,
+          expectedOutDisplay,
         }
       : null;
   const timestamp = Date.now();
@@ -4575,6 +4835,7 @@ async function handleMaybifyReceipt(receipt, swapper) {
           parsed.args.swapBackResultData,
           swapCtx,
         );
+        showSliderResult(parsed.args.randomnessInBps, won);
         showMaybifyNotif(
           maybifyId,
           won ? "won" : "lost",
@@ -4582,6 +4843,7 @@ async function handleMaybifyReceipt(receipt, swapper) {
           undefined,
           swapCtx,
           timestamp,
+          { registerTxHash: receipt.hash, resolveTxHash: receipt.hash },
         );
         return { type: "resolved", won, desc, swapCtx };
       }
@@ -4605,6 +4867,7 @@ async function handleMaybifyReceipt(receipt, swapper) {
     fromBlock: receipt.blockNumber,
     swapCtx,
     timestamp,
+    registerTxHash: receipt.hash,
   });
   _startMaybifyPolling(
     maybifyId,
@@ -4612,8 +4875,471 @@ async function handleMaybifyReceipt(receipt, swapper) {
     receipt.blockNumber,
     swapCtx,
     timestamp,
+    receipt.hash,
   );
   return { type: "pending", maybifyId, swapCtx };
+}
+
+// ---- Gamification: confetti ----
+function _fireConfetti(intensity) {
+  intensity = Math.max(0.3, Math.min(3, intensity || 1));
+  const canvas = document.createElement("canvas");
+  canvas.style.cssText =
+    "position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999;";
+  document.body.appendChild(canvas);
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const ctx = canvas.getContext("2d");
+  const colors = [
+    "#ff6b6b",
+    "#ffd93d",
+    "#6bcb77",
+    "#4d96ff",
+    "#ff6bff",
+    "#ffa94d",
+    "#a9e34b",
+  ];
+  const count = Math.floor(80 * intensity);
+  const pieces = [];
+  for (let i = 0; i < count; i++) {
+    pieces.push({
+      x: Math.random() * canvas.width,
+      y: -Math.random() * (canvas.height / 3),
+      w: 6 + Math.random() * 7,
+      h: 10 + Math.random() * 7,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      vx: (Math.random() - 0.5) * 5,
+      vy: 1.5 + Math.random() * 3.5,
+      rot: Math.random() * Math.PI * 2,
+      vr: (Math.random() - 0.5) * 0.18,
+    });
+  }
+  let rafId;
+  const draw = () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    let alive = false;
+    for (const p of pieces) {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.rot += p.vr;
+      p.vy += 0.06;
+      if (p.y < canvas.height + 20) alive = true;
+      const fade =
+        p.y > canvas.height - 120
+          ? Math.max(0, 1 - (p.y - (canvas.height - 120)) / 120)
+          : 1;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = fade;
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+    }
+    if (alive) rafId = requestAnimationFrame(draw);
+    else canvas.remove();
+  };
+  draw();
+  setTimeout(() => {
+    cancelAnimationFrame(rafId);
+    canvas.remove();
+  }, 6000);
+}
+
+// ---- Gamification: sounds ----
+function _playWinSound() {
+  try {
+    const ac = new (window.AudioContext || window.webkitAudioContext)();
+    const notes = [523, 659, 784, 1047]; // C5 E5 G5 C6
+    notes.forEach((freq, i) => {
+      const osc = ac.createOscillator();
+      const gain = ac.createGain();
+      osc.connect(gain);
+      gain.connect(ac.destination);
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      const t = ac.currentTime + i * 0.1;
+      gain.gain.setValueAtTime(0.28, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+      osc.start(t);
+      osc.stop(t + 0.35);
+    });
+  } catch (e) {}
+}
+
+function _playLoseSound() {
+  try {
+    const ac = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.connect(gain);
+    gain.connect(ac.destination);
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(300, ac.currentTime);
+    osc.frequency.linearRampToValueAtTime(140, ac.currentTime + 0.45);
+    gain.gain.setValueAtTime(0.18, ac.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.45);
+    osc.start();
+    osc.stop(ac.currentTime + 0.45);
+  } catch (e) {}
+}
+
+// ---- Gamification: stats (derived from history, never double-counts) ----
+function _updateStats() {
+  _renderStatsBar();
+}
+
+function _renderStatsBar() {
+  const history = _loadSwapHistory();
+  const wins = history.filter((e) => e.won).length;
+  const losses = history.filter((e) => !e.won).length;
+  if (wins + losses === 0) return;
+  const bar = $("statsBar");
+  if (!bar) return;
+  bar.textContent = `${wins}W · ${losses}L`;
+  bar.style.display = "";
+}
+
+// ---- Gamification: swap history ----
+const SWAP_HISTORY_KEY = "maybe_swap_history";
+const SWAP_HISTORY_MAX = 50;
+
+function _loadSwapHistory() {
+  try {
+    return JSON.parse(localStorage.getItem(SWAP_HISTORY_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function _saveSwapToHistory(entry) {
+  const history = _loadSwapHistory().filter(
+    (e) => e.maybifyId !== String(entry.maybifyId),
+  );
+  history.unshift(entry);
+  if (history.length > SWAP_HISTORY_MAX) history.splice(SWAP_HISTORY_MAX);
+  try {
+    localStorage.setItem(SWAP_HISTORY_KEY, JSON.stringify(history));
+  } catch {}
+}
+
+function _tokenSymbolByAddr(addr) {
+  if (!addr) return "";
+  if (
+    addr.toLowerCase() === ZERO_ADDRESS.toLowerCase() ||
+    addr.toLowerCase() === WETH_ADDRESS.toLowerCase()
+  )
+    return "ETH";
+  const t = Object.values(tokens).find(
+    (t) => t.address?.toLowerCase() === addr.toLowerCase(),
+  );
+  return t?.symbol || addr.slice(0, 6) + "…";
+}
+
+function _renderHistoryPanel() {
+  const history = _loadSwapHistory();
+  const countEl = $("historyCount");
+  if (countEl)
+    setText(countEl, history.length > 0 ? `(${history.length})` : "");
+  const panel = $("historyPanel");
+  if (panel) panel.style.display = history.length > 0 ? "" : "none";
+  const content = $("historyContent");
+  if (!content || content.style.display === "none") return;
+  if (history.length === 0) {
+    setHTML(
+      content,
+      '<div style="color:var(--fg-muted);text-align:center;padding:8px 0;">No swaps yet.</div>',
+    );
+    return;
+  }
+  const BASE_TX = "https://basescan.org/tx/";
+  setHTML(
+    content,
+    history
+      .map((e) => {
+        const date = new Date(e.timestamp);
+        const dateExact =
+          date.toLocaleDateString() +
+          " " +
+          date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        const dateStr = _timeAgo(e.timestamp);
+        const pct =
+          e.probabilityPct != null
+            ? escText(String(e.probabilityPct)) + "%"
+            : "?";
+        // Input — clickable link to registration tx
+        const inPart = e.inDisplay
+          ? e.registerTxHash
+            ? `<a href="${escAttr(BASE_TX + e.registerTxHash)}" target="_blank" rel="noopener" class="history-tx-link">${escText(e.inDisplay)}</a>`
+            : `<span>${escText(e.inDisplay)}</span>`
+          : "";
+
+        // Output — always "→ amount", links to resolveTxHash for both win and loss
+        const outRaw = e.outDisplay || "?";
+        const outPart = e.resolveTxHash
+          ? `<a href="${escAttr(BASE_TX + e.resolveTxHash)}" target="_blank" rel="noopener" class="history-tx-link">${escText(outRaw)}</a>`
+          : `<span>${escText(outRaw)}</span>`;
+
+        const rowClass = e.won
+          ? "history-row history-row--win"
+          : "history-row history-row--loss";
+        return (
+          `<div class="${rowClass}">` +
+          `<div>` +
+          `<div class="history-main">${inPart} → ${outPart}</div>` +
+          `<div class="history-sub" title="${escAttr(dateExact)}">${pct} · ${escText(dateStr)}</div>` +
+          `</div></div>`
+        );
+      })
+      .join(""),
+  );
+}
+
+function toggleHistoryPanel() {
+  const content = $("historyContent");
+  const arrow = $("historyArrow");
+  if (!content) return;
+  const open = content.style.display === "none";
+  content.style.display = open ? "" : "none";
+  if (arrow) arrow.classList.toggle("open", open);
+  if (open) _renderHistoryPanel();
+}
+
+// ---- Gamification: big winners ----
+let _bigWinnersCache = [];
+let _bigWinnersLastBlock = 0;
+let _winnersOpen = false;
+
+function _timeAgo(tsMs) {
+  const diff = Date.now() - tsMs;
+  if (diff < 60000) return "just now";
+  if (diff < 3600000) return Math.floor(diff / 60000) + "m ago";
+  if (diff < 86400000) return Math.floor(diff / 3600000) + "h ago";
+  return Math.floor(diff / 86400000) + "d ago";
+}
+
+function _decodeBigWinnerAmount(swapBackState, swapBackResultData) {
+  const dec = ethers.AbiCoder.defaultAbiCoder();
+  try {
+    if (swapBackState === 1) {
+      const [amt] = dec.decode(["uint256"], swapBackResultData);
+      return `${fmt(ethers.formatEther(amt))} MAYBE`;
+    }
+    if (swapBackState === 2) {
+      const [ethAmt] = dec.decode(["uint256", "uint256"], swapBackResultData);
+      return `${fmt(ethers.formatEther(ethAmt))} ETH`;
+    }
+    if (swapBackState === 3 || swapBackState === 4) {
+      const [ethAmt] = dec.decode(["uint256"], swapBackResultData);
+      return `${fmt(ethers.formatEther(ethAmt))} ETH`;
+    }
+    if (swapBackState === 5) {
+      const [addr, amt] = dec.decode(
+        ["address", "uint256"],
+        swapBackResultData,
+      );
+      if (amt === ethers.MaxUint256) return "tokens";
+      const t = Object.values(tokens).find(
+        (t) => t.address?.toLowerCase() === addr.toLowerCase(),
+      );
+      return `${fmt(ethers.formatUnits(amt, t?.decimals ?? 18))} ${t?.symbol || addr.slice(0, 6) + "…"}`;
+    }
+  } catch {}
+  return "tokens";
+}
+
+async function _refreshBigWinners() {
+  const resolvedTopic = MAYBE_HOOK_IFACE.getEvent(
+    "MaybifiedSwapResolved",
+  ).topicHash;
+  const registeredTopic = MAYBE_HOOK_IFACE.getEvent(
+    "MaybifiedSwapRegistered",
+  ).topicHash;
+  const swapBeforeTopic = MAYBE_ROUTER_IFACE.getEvent(
+    "SwapBeforeMaybifying",
+  ).topicHash;
+  try {
+    const latestBlock = await quoteRPC.call((rpc) => rpc.getBlockNumber());
+    const fromBlock =
+      _bigWinnersLastBlock > 0
+        ? _bigWinnersLastBlock + 1
+        : Math.max(0, latestBlock - 10000);
+    if (_bigWinnersLastBlock > 0 && fromBlock > latestBlock) return;
+
+    const [resolvedLogs, registeredLogs, routerLogs] = await Promise.all([
+      quoteRPC.call((rpc) =>
+        rpc.getLogs({
+          address: MAYBE_HOOK_ADDRESS,
+          fromBlock,
+          toBlock: latestBlock,
+          topics: [resolvedTopic],
+        }),
+      ),
+      quoteRPC.call((rpc) =>
+        rpc.getLogs({
+          address: MAYBE_HOOK_ADDRESS,
+          fromBlock,
+          toBlock: latestBlock,
+          topics: [registeredTopic],
+        }),
+      ),
+      quoteRPC.call((rpc) =>
+        rpc.getLogs({
+          address: MAYBE_ROUTER_ADDRESS,
+          fromBlock,
+          toBlock: latestBlock,
+          topics: [swapBeforeTopic],
+        }),
+      ),
+    ]);
+
+    _bigWinnersLastBlock = latestBlock;
+
+    // id → probabilityInBps
+    const registerMap = new Map();
+    for (const log of registeredLogs) {
+      try {
+        const p = MAYBE_HOOK_IFACE.parseLog(log);
+        if (p) {
+          registerMap.set(String(p.args.id), {
+            probability: p.args.probabilityInBps,
+            burntAmount: p.args.burntAmount,
+            registerTxHash: log.transactionHash,
+          });
+        }
+      } catch {}
+    }
+
+    // id → { inToken, inTokenAmount, registerTxHash }
+    const swapBeforeMap = new Map();
+    for (const log of routerLogs) {
+      try {
+        const p = MAYBE_ROUTER_IFACE.parseLog(log);
+        if (p)
+          swapBeforeMap.set(String(p.args.maybifyId), {
+            inToken: p.args.inToken,
+            inTokenAmount: p.args.inTokenAmount,
+            registerTxHash: log.transactionHash,
+          });
+      } catch {}
+    }
+
+    const newWinners = resolvedLogs
+      .map((log) => {
+        try {
+          const parsed = MAYBE_HOOK_IFACE.parseLog(log);
+          if (!parsed || Number(parsed.args.swapBackState) === 0) return null;
+          const id = String(parsed.args.id);
+          const swapBefore = swapBeforeMap.get(id);
+          const register = registerMap.get(id);
+          return {
+            swapper: parsed.args.swapper,
+            mintedAmount: parsed.args.mintedAmount,
+            swapBackState: Number(parsed.args.swapBackState),
+            swapBackResultData: parsed.args.swapBackResultData,
+            timestamp: Number(parsed.args.timestamp),
+            probabilityInBps: register.probability ?? null,
+            inToken: swapBefore?.inToken ?? tokens.MAYBE.address,
+            inTokenAmount:
+              swapBefore?.inTokenAmount ?? register.burntAmount ?? null,
+            registerTxHash:
+              swapBefore?.registerTxHash ?? register.registerTxHash ?? null,
+            resolveTxHash: log.transactionHash,
+          };
+        } catch (err) {
+          return null;
+        }
+      })
+      .filter(Boolean);
+
+    if (newWinners.length > 0 || _bigWinnersCache.length === 0) {
+      _bigWinnersCache = [..._bigWinnersCache, ...newWinners]
+        .sort((a, b) => b.timestamp - a.timestamp)
+        .slice(0, 10);
+    }
+    _renderBigWinnersPanel();
+  } catch (e) {
+    console.warn("Big winners fetch error:", e);
+    setText("winnersStatus", "");
+  }
+}
+
+function _renderBigWinnersPanel() {
+  setText("winnersStatus", "");
+  const content = $("winnersContent");
+  if (!content || !_winnersOpen) return;
+  if (_bigWinnersCache.length === 0) {
+    setHTML(
+      content,
+      '<div style="color:var(--fg-muted);text-align:center;padding:8px 0;">No recent swappers found.</div>',
+    );
+    return;
+  }
+  const BASE_TX = "https://basescan.org/tx/";
+  const BASE_ADDR = "https://basescan.org/address/";
+  setHTML(
+    content,
+    _bigWinnersCache
+      .map((w) => {
+        const addr = w.swapper.slice(0, 6) + "…" + w.swapper.slice(-4);
+        const outAmount = _decodeBigWinnerAmount(
+          w.swapBackState,
+          w.swapBackResultData,
+        );
+        const prob =
+          w.probabilityInBps != null
+            ? Math.round(Number(w.probabilityInBps) / 100)
+            : null;
+        const probStr = prob != null ? ` with ${prob}% chance` : "";
+        const timeStr = w.timestamp > 0 ? _timeAgo(w.timestamp * 1000) : "";
+
+        // Input: formatted inToken amount, clickable → registerTxHash
+        let inDisplay = "";
+        if (w.inToken && w.inTokenAmount != null) {
+          try {
+            inDisplay = _fmtTokenByAddr(w.inToken, BigInt(w.inTokenAmount));
+          } catch {}
+        }
+        const inPart = inDisplay
+          ? w.registerTxHash
+            ? `<a href="${escAttr(BASE_TX + w.registerTxHash)}" target="_blank" rel="noopener" class="history-tx-link">${escText(inDisplay)}</a>`
+            : `<span>${escText(inDisplay)}</span>`
+          : "";
+
+        // Output: clickable → resolveTxHash
+        const outPart = w.resolveTxHash
+          ? `<a href="${escAttr(BASE_TX + w.resolveTxHash)}" target="_blank" rel="noopener" class="history-tx-link">${escText(outAmount)}</a>`
+          : `<span>${escText(outAmount)}</span>`;
+
+        return (
+          `<div class="winner-row">` +
+          `<div>` +
+          `<div class="winner-main">` +
+          // `<span class="winner-addr">${escText(addr)}</span> `→ +
+          `<a href="${escAttr(BASE_ADDR + w.swapper)}" target="_blank" rel="noopener" class="history-tx-link">${escText(addr)}</a>` +
+          ` swapped ${inPart} → ${outPart}${escText(probStr)}` +
+          `</div>` +
+          (timeStr ? `<div class="winner-sub">${escText(timeStr)}</div>` : "") +
+          `</div></div>`
+        );
+      })
+      .join(""),
+  );
+}
+
+function toggleWinnersPanel() {
+  const content = $("winnersContent");
+  if (!content) return;
+  _winnersOpen = !_winnersOpen;
+  content.style.display = _winnersOpen ? "" : "none";
+  const arrow = $("winnersArrow");
+  if (arrow) arrow.classList.toggle("open", _winnersOpen);
+  if (_winnersOpen) _renderBigWinnersPanel();
+}
+
+function _startBigWinnersPoller() {
+  _refreshBigWinners();
+  setInterval(_refreshBigWinners, 60_000);
 }
 
 function restoreMaybifyPolls() {
@@ -4623,6 +5349,7 @@ function restoreMaybifyPolls() {
     fromBlock,
     swapCtx,
     timestamp,
+    registerTxHash,
   } of _loadMaybifyPending()) {
     showMaybifyNotif(
       maybifyId,
@@ -4632,7 +5359,14 @@ function restoreMaybifyPolls() {
       swapCtx,
       timestamp,
     );
-    _startMaybifyPolling(maybifyId, swapper, fromBlock, swapCtx, timestamp);
+    _startMaybifyPolling(
+      maybifyId,
+      swapper,
+      fromBlock,
+      swapCtx,
+      timestamp,
+      registerTxHash,
+    );
   }
 }
 
@@ -4645,6 +5379,9 @@ document.addEventListener("DOMContentLoaded", () => {
     fromEl.addEventListener("input", debounce(handleAmountChange, 400));
   // Defer heavy localStorage parsing until after first render
   (window.requestIdleCallback || setTimeout)(() => loadWeiLists());
+  // Render persisted stats + history count on load
+  _renderStatsBar();
+  _renderHistoryPanel();
 });
 
 // Swap button click
@@ -4659,6 +5396,7 @@ $("swapBtn").addEventListener("click", () => {
 // ---- Auto-reconnect (non-blocking) ----
 window.addEventListener("load", () => {
   restoreMaybifyPolls();
+  _startBigWinnersPoller();
   const savedWallet = localStorage.getItem("zswap_wallet");
   if (!savedWallet) return;
   setText("walletBtn", "...");

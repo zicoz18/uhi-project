@@ -47,7 +47,6 @@ IZQuoterBase constant _BASE = IZQuoterBase(
     0xdEEac226B7E6146E79bcca4dd7224F131d631a8C
 );
 
-/// @dev This is a fork of @z0r0z's zQuoterBase contract. We have adjusted the contract for it to be deployed on Base
 contract MaybeZQuoter {
     enum AMM {
         UNI_V2,

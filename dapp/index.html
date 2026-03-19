@@ -7,11 +7,17 @@
       content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
     <title>MAYBE SWAP</title>
+    <meta
+      name="description"
+      content="MaybeSwap lets you maybify token swaps: get higher output or nothing. Powered by VRF, low fees, and transparent risk. Learn how to swap safely today."
+    />
+    <link rel="canonical" href="https://maybeswap.wei.domains/" />
     <link
       rel="icon"
       href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%230a0a0a'/><rect x='3' y='1' width='1' height='1' fill='%23e8e8e0'/><rect x='5' y='2' width='1' height='1' fill='%23e8e8e0'/><rect x='10' y='2' width='1' height='1' fill='%23e8e8e0'/><rect x='12' y='1' width='1' height='1' fill='%23e8e8e0'/><rect x='4' y='4' width='8' height='1' fill='%23e8e8e0'/><rect x='3' y='5' width='10' height='1' fill='%23e8e8e0'/><rect x='2' y='6' width='12' height='3' fill='%23e8e8e0'/><rect x='3' y='9' width='10' height='1' fill='%23e8e8e0'/><rect x='4' y='10' width='8' height='1' fill='%23e8e8e0'/><rect x='3' y='6' width='3' height='2' fill='%230a0a0a'/><rect x='10' y='6' width='3' height='2' fill='%230a0a0a'/><rect x='5' y='11' width='2' height='1' fill='%23e8e8e0'/><rect x='9' y='11' width='2' height='1' fill='%23e8e8e0'/><rect x='2' y='12' width='3' height='1' fill='%23e8e8e0'/><rect x='7' y='12' width='2' height='1' fill='%23e8e8e0'/><rect x='11' y='12' width='3' height='1' fill='%23e8e8e0'/><rect x='1' y='13' width='2' height='1' fill='%23e8e8e0'/><rect x='13' y='13' width='2' height='1' fill='%23e8e8e0'/></svg>"
       type="image/svg+xml"
     />
+
     <script>
       // Prevent dark-mode FOUC: apply class before first paint
       (function () {
@@ -469,9 +475,9 @@
       }
       #routeInfo {
         max-width: 65%;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        white-space: normal;
+        word-break: break-word;
+        text-align: right;
       }
       #routeInfo[data-size="sm"] {
         font-size: 12px;
@@ -1046,39 +1052,105 @@
       .slidecontainer {
         margin-top: 16px;
       }
-      .slider {
+      .maybe-slider-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .maybe-slider-edge-labels {
+        display: flex;
+        justify-content: space-between;
+        font-size: 11px;
+        color: var(--text-muted);
+        padding: 0 2px;
+      }
+      .maybe-slider-track-area {
+        position: relative;
+        height: 28px;
+        display: flex;
+        align-items: center;
+      }
+      .maybe-slider {
         -webkit-appearance: none;
         appearance: none;
         width: 100%;
-        height: 2px;
-        background: var(--border-muted);
+        height: 6px;
+        border-radius: 3px;
         outline: none;
         cursor: pointer;
+        /* background: linear-gradient(to right, #4a7a62 50%, #7a4a4a 50%); */
+        background: linear-gradient(to right, #3d9e6e 50%, #b04040 50%);
       }
-      .slider::-webkit-slider-thumb {
+      .maybe-slider::-webkit-slider-thumb {
         -webkit-appearance: none;
         appearance: none;
-        width: 14px;
-        height: 14px;
+        width: 20px;
+        height: 20px;
         border-radius: 50%;
-        background: var(--btn-bg);
+        background: #fff;
+        border: 2px solid rgba(255, 255, 255, 0.25);
         cursor: pointer;
+        box-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+        transition: transform 0.1s ease;
+        position: relative;
+        z-index: 2;
+      }
+      .maybe-slider::-webkit-slider-thumb:hover {
+        transform: scale(1.15);
+      }
+      .maybe-slider::-moz-range-thumb {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #fff;
+        border: 2px solid rgba(255, 255, 255, 0.25);
+        cursor: pointer;
+        box-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
         transition: transform 0.1s ease;
       }
-      .slider::-webkit-slider-thumb:hover {
-        transform: scale(1.2);
+      .maybe-slider::-moz-range-thumb:hover {
+        transform: scale(1.15);
       }
-      .slider::-moz-range-thumb {
-        width: 14px;
-        height: 14px;
-        border-radius: 50%;
-        background: var(--btn-bg);
-        cursor: pointer;
-        border: none;
-        transition: transform 0.1s ease;
+      .maybe-slider-result-marker {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        transform: translateX(-50%);
+        pointer-events: none;
+        z-index: 3;
+        display: none;
       }
-      .slider::-moz-range-thumb:hover {
-        transform: scale(1.2);
+      .maybe-slider-result-needle {
+        width: 3px;
+        height: 100%;
+        border-radius: 2px;
+        background: #fff;
+        box-shadow: 0 0 6px rgba(255, 255, 255, 0.7);
+      }
+      .maybe-slider-result-label {
+        position: absolute;
+        bottom: calc(100% + 4px);
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 10px;
+        font-weight: 700;
+        color: #fff;
+        background: rgba(0, 0, 0, 0.75);
+        padding: 2px 5px;
+        border-radius: 3px;
+        white-space: nowrap;
+      }
+      .maybe-slider-main-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .maybe-slider-track-col {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
       }
       /* ---- Maybify notifications ---- */
       #maybifyNotifContainer {
@@ -1214,6 +1286,129 @@
       .maybify-notif-pending .maybify-notif-icon {
         animation: pulse 2s ease-in-out infinite;
       }
+
+      /* ---- Stats bar ---- */
+      .stats-bar {
+        margin-top: 8px;
+        font-size: 12px;
+        text-align: center;
+        color: var(--fg-muted);
+        padding: 4px 0;
+        letter-spacing: 0.04em;
+      }
+
+      /* ---- Collapsible panels (history + winners) ---- */
+      .maybe-panel {
+        border: 1px solid var(--card-border);
+        margin-top: 8px;
+      }
+      .maybe-panel-header {
+        padding: 10px 16px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        user-select: none;
+      }
+      .maybe-panel-header:hover {
+        background: var(--surface-hover);
+      }
+      .maybe-panel-content {
+        padding: 10px 16px;
+        font-size: 12px;
+        max-height: 300px;
+        overflow-y: auto;
+        border-top: 1px solid var(--card-border);
+      }
+      .panel-badge {
+        font-size: 11px;
+        font-weight: 400;
+        color: var(--fg-muted);
+        text-transform: none;
+        letter-spacing: 0;
+      }
+      .panel-arrow {
+        font-size: 10px;
+        color: var(--fg-muted);
+        transition: transform 0.15s;
+      }
+      .panel-arrow.open {
+        transform: rotate(180deg);
+      }
+
+      /* ---- History rows ---- */
+      .history-row {
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+        padding: 6px 8px;
+        border-bottom: 1px solid var(--border-muted);
+        border-radius: 4px;
+      }
+      .history-row:last-child {
+        border-bottom: none;
+      }
+      .history-row--win {
+        background: rgba(74, 180, 100, 0.08);
+        color: #6ed48a;
+      }
+      .history-row--loss {
+        background: rgba(220, 80, 80, 0.08);
+        color: #e07070;
+      }
+      .history-main {
+        font-size: 12px;
+        line-height: 1.4;
+      }
+      .history-tx-link {
+        color: inherit;
+        text-decoration: underline;
+        text-decoration-color: var(--fg-muted);
+        text-underline-offset: 2px;
+        cursor: pointer;
+      }
+      .history-tx-link:hover {
+        text-decoration-color: var(--fg);
+      }
+      .history-sub {
+        font-size: 11px;
+        color: var(--fg-muted);
+        margin-top: 2px;
+      }
+
+      /* ---- Winner rows ---- */
+      .winner-row {
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+        padding: 6px 0;
+        border-bottom: 1px solid var(--border-muted);
+      }
+      .winner-row:last-child {
+        border-bottom: none;
+      }
+      .winner-icon {
+        font-size: 14px;
+        line-height: 1.4;
+        flex-shrink: 0;
+      }
+      .winner-main {
+        font-size: 12px;
+        line-height: 1.4;
+      }
+      .winner-addr {
+        font-family: monospace;
+        font-size: 11px;
+      }
+      .winner-sub {
+        font-size: 11px;
+        color: var(--fg-muted);
+        margin-top: 2px;
+      }
     </style>
   </head>
   <body>
@@ -1250,30 +1445,17 @@
             <circle cx="12" cy="12" r="10" />
             <line x1="12" y1="16" x2="12" y2="12" />
             <line x1="12" y1="8" x2="12.01" y2="8" /></svg></span
-        ><span class="info-tooltip"
-          ><a
-            href="https://basescan.org/address/0x06f159ff41aa2f3777e6b504242cab18bb60dfe4#code"
-            target="_blank"
-            rel="noopener"
-            style="color: inherit; font-weight: 600"
-            >MaybeZRouter</a
-          >
-          is a fully on-chain DEX aggregator. Routes are discovered and
-          optimized by MaybeZQuoter directly on the blockchain — no off-chain
-          APIs, no solvers, no servers.<br /><br />Aggregates Uniswap V2/V3/V4,
-          and zAMM, with atomic multi-hop execution, split routing, and per-leg
-          slippage protection.<br /><br />Zero protocol fees. No intermediaries.
-          Your trade goes directly from your wallet to the liquidity pools. Both
-          contracts are customizes versions of
-          <a
-            href="https://zfi.wei.is"
-            target="_blank"
-            rel="noopener"
-            style="color: inherit; font-weight: 600"
-            >zFi</a
-          >
-          contracts</span
-        ></span
+        ><span class="info-tooltip">
+          MaybeSwap allows anyone to maybify their swaps.<br /><br />
+          By maybifying, you either get more output than a normal swap or get
+          nothing.<br /><br />
+          Rather than performing an atomic swap in a single transaction.
+          Swapping is seperated into 2 transactions. First transaction does swap
+          from user's input token to MAYBE, burn them to register a
+          maybification and request VRF. Second transaction resolves it. If
+          successful, more MAYBE gets minted and gets swapped back to user's
+          desired output token.
+        </span></span
       >
     </h1>
 
@@ -1456,7 +1638,7 @@
           </span>
         </div>
         <div id="quoteRate" class="quote-rate" style="display: none"></div>
-        <div id="allRoutesWrap" style="display: none">
+        <!-- <div id="allRoutesWrap" style="display: none">
           <div class="routes-toggle" onclick="toggleAllRoutes()">
             <span class="chevron" id="routesChevron" style="font-size: 9px"
               >&#9654;</span
@@ -1468,7 +1650,7 @@
             class="routes-list"
             style="display: none"
           ></div>
-        </div>
+        </div> -->
       </div>
 
       <!-- Receiver (optional) -->
@@ -1513,32 +1695,52 @@
 
       <!-- Maybifying probability slider -->
       <div class="section slidecontainer">
-        <label>Probability of swap happening</label>
-        <div style="display: flex; align-items: center; gap: 12px">
-          <input
-            type="range"
-            min="5"
-            max="95"
-            step="1"
-            value="50"
-            class="slider"
-            id="slider"
-            aria-label="Win probability (%)"
-          />
-          <span class="slip-inline">
-            <input
-              id="sliderValue"
-              class="slip-num"
-              type="number"
-              inputmode="decimal"
-              min="5"
-              max="95"
-              step="1"
-              value="50"
-              aria-label="Probability (%)"
-            />
-            <span class="slip-unit">%</span>
-          </span>
+        <label class="">Probability of swap happening</label>
+        <div class="maybe-slider-wrap">
+          <div class="maybe-slider-main-row">
+            <div class="maybe-slider-track-col">
+              <div class="maybe-slider-edge-labels">
+                <span style="color: var(--fg-muted)">0%</span>
+                <span style="color: var(--fg-muted)">100%</span>
+              </div>
+              <div class="maybe-slider-track-area">
+                <input
+                  type="range"
+                  min="5"
+                  max="95"
+                  step="1"
+                  value="50"
+                  class="maybe-slider"
+                  id="slider"
+                  aria-label="Win probability (%)"
+                />
+                <div class="maybe-slider-result-marker" id="sliderResultMarker">
+                  <div
+                    class="maybe-slider-result-needle"
+                    id="sliderResultNeedle"
+                  ></div>
+                  <div
+                    class="maybe-slider-result-label"
+                    id="sliderResultLabel"
+                  ></div>
+                </div>
+              </div>
+            </div>
+            <span class="slip-inline">
+              <input
+                id="sliderValue"
+                class="slip-num"
+                type="number"
+                inputmode="decimal"
+                min="5"
+                max="95"
+                step="1"
+                value="50"
+                aria-label="Probability (%)"
+              />
+              <span class="slip-unit">%</span>
+            </span>
+          </div>
         </div>
       </div>
 
@@ -1549,6 +1751,67 @@
 
     <!-- Status -->
     <div id="status" class="status"></div>
+
+    <!-- Stats bar -->
+    <div id="statsBar" class="stats-bar" style="display: none"></div>
+
+    <!-- Swap history panel -->
+    <div id="historyPanel" class="maybe-panel" style="display: none">
+      <div class="maybe-panel-header" onclick="toggleHistoryPanel()">
+        <span
+          >My History <span id="historyCount" class="panel-badge"></span
+        ></span>
+        <span id="historyArrow" class="panel-arrow">▼</span>
+      </div>
+      <div
+        id="historyContent"
+        class="maybe-panel-content"
+        style="display: none"
+      ></div>
+    </div>
+
+    <!-- Recent winners panel -->
+    <div id="winnersPanel" class="maybe-panel">
+      <div class="maybe-panel-header" onclick="toggleWinnersPanel()">
+        <span style="display: inline-flex; align-items: center; gap: 6px"
+          >Recent Swaps
+          <span id="winnersStatus" class="panel-badge">loading…</span>
+          <span class="info-tip"
+            ><span
+              class="info-icon"
+              onclick="
+                this.parentElement.classList.toggle('open');
+                event.stopPropagation();
+              "
+              ><svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="16" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12.01" y2="8" /></svg></span
+            ><span class="info-tooltip"
+              >The 10 most recent successful swaps from all users, fetched
+              directly from on-chain events. Refreshed every 60 seconds.<br /><br />Input
+              amounts link to the registration transaction. Output amounts link
+              to the VRF resolution transaction.</span
+            ></span
+          ></span
+        >
+        <span id="winnersArrow" class="panel-arrow">▼</span>
+      </div>
+      <div
+        id="winnersContent"
+        class="maybe-panel-content"
+        style="display: none"
+      ></div>
+    </div>
 
     <!-- Wallet Modal -->
     <div

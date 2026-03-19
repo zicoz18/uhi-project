@@ -6,7 +6,6 @@
 // Disabling the Yul optimizer with via_ir keeps contract under EIP-170 (24,576 bytes).
 pragma solidity ^0.8.33;
 
-/// @dev This is a fork of @z0r0z's zQuoterBase contract. We have adjusted the contract for it to be deployed on Base
 contract MaybeZQuoterBase {
     enum AMM {
         UNI_V2,
