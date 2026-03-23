@@ -4,7 +4,7 @@ A DEX that allows users to maybify their swaps. By maybifying their swaps, user'
 
 ## Integration of Unichain Hook Ideas
 
-- Tokenized Strategies/Yield-Bearing Tokens: AMM liquidity is being used as the bankroll for the swaps. As there is protocol fee for the swaps, fees get generated as swaps occur and those fees get shared with the liquidity providers. Generating a unique source of yield for the MAYBE token.
+- Tokenized Strategies/Yield-Bearing Tokens: AMM liquidity is being used as the bankroll for the swaps. Because of the protocol fee, some percentage of the swap gets burnt and some percentage of that burnt amount gets minted for liquidity providers, on top the swap fees they get. Generating a unique source of yield for the liquidirty providers for ETH/MAYBE pool.
 
 - Chain-Localized Routing: With the help of our MaybeZQuoter and MaybeZRouter contracts, we are able to find the best route for our trades on that chain, using only smart contracts calls. These contract aggregate multiple Uniswap protocols, with considering multi hop swaps, splitting swaps and more.
 
