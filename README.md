@@ -39,3 +39,11 @@ Lets get to incentives and tokenomics to check if we were able to create a healt
 ## NOTICE
 
 This project is being built heavily on top of [@z0r0zzz](https://x.com/z0r0zzz)'s [zFi](https://github.com/z-fi/zFi) project which includes zRouter and zQuoter that allows a simple frontend to have DEX aggreation on chain without the need for a backend. This helps tremendously when trying to quickly develop and test our smart contracts because we can easily fork the mainnet and get quotes and swapping tested with our in development code. In addition, they have a public [frontend](https://github.com/z-fi/zFi/tree/main/dapp) that interacts with these contracts and is published on IPFS that we got inspired from and after updating it based on our needs, we decided to follow their way and deployed our frontend to IPFS and make use of their WEI name services to host this IPFS at https://maybeswap.wei.domains. So, we want to thank [@z0r0z](https://github.com/z0r0z) for their public work.
+
+## Disclaimer
+
+*These smart contracts and testing suite are being provided as is. No guarantee, representation or warranty is being made, express or implied, as to the safety or correctness of anything provided herein or through related user interfaces. This repository and related code have not been audited and as such there can be no assurance anything will work as intended, and users may experience delays, failures, errors, omissions, loss of transmitted information or loss of funds. The creators are not liable for any of the foregoing. Users should proceed with caution and use at their own risk.*
+
+## License
+
+See [LICENSE](./LICENSE) for more details.
