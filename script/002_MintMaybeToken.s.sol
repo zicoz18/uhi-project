@@ -7,9 +7,9 @@ import {IMaybeToken} from "../../src/interfaces/IMaybeToken.sol";
 
 contract MintMaybeTokenScript is Script {
     function run() public {
-        // Deploy the MaybeToken
+        string memory json = vm.readFile("deployments/MaybeToken.json");
         IMaybeToken maybeToken = IMaybeToken(
-            address(0xfA445199d5AA54E1b8E5d8D93492743425ce5D21)
+            vm.parseJsonAddress(json, ".MaybeToken")
         );
         address owner = 0xd264532bB799a551Ba8BBeDd15356C496Eb18954;
         vm.startBroadcast();
