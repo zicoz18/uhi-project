@@ -38,10 +38,10 @@ contract CreatePoolAndAddLiquidityScript is BaseScript, LiquidityHelpers {
     function run() external {
         PoolKey memory poolKey = PoolKey({
             currency0: currency0, // ETH
-            currency1: currency1, // value set inside BaseScipt, make sure to update value inside there // @TODO: Update after MaybeToken deployment
+            currency1: currency1,
             fee: lpFee,
             tickSpacing: tickSpacing,
-            hooks: IHooks(hookContract) // value set inside BaseScript, make sure to update value inside there // @TODO: Update after MaybeHook deployment
+            hooks: IHooks(hookContract)
         });
 
         string memory json = vm.serializeBytes32(

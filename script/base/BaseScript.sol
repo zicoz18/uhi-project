@@ -20,19 +20,21 @@ contract BaseScript is Script, Deployers {
     address immutable deployerAddress;
 
     /////////////////////////////////////
-    // --- Configure These ---
-    /////////////////////////////////////
     IERC20 internal constant token0 = IERC20(address(0));
-    IERC20 internal constant token1 =
-        IERC20(0xfA445199d5AA54E1b8E5d8D93492743425ce5D21); // @TODO: Update after MaybeToken deployment
-    IHooks constant hookContract =
-        IHooks(0x04f4CcA485013a5507C3c1bD7a6bEEb82B5C60Cc); // @TODO: Update after MaybeHook deployment
+    IERC20 internal immutable token1;
+    IHooks internal immutable hookContract;
     /////////////////////////////////////
 
     Currency immutable currency0;
     Currency immutable currency1;
 
     constructor() {
+        string memory maybeTokenJson = vm.readFile("deployments/MaybeToken.json");
+        token1 = IERC20(vm.parseJsonAddress(maybeTokenJson, ".MaybeToken"));
+
+        string memory maybeHookJson = vm.readFile("deployments/MaybeHook.json");
+        hookContract = IHooks(vm.parseJsonAddress(maybeHookJson, ".MaybeHook"));
+
         // Make sure artifacts are available, either deploy or configure.
         deployArtifacts();
 
@@ -69,7 +71,7 @@ contract BaseScript is Script, Deployers {
         }
     }
 
-    function getCurrencies() internal pure returns (Currency, Currency) {
+    function getCurrencies() internal view returns (Currency, Currency) {
         require(address(token0) != address(token1));
 
         if (token0 < token1) {
